@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Progress Bars</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Initialize theme based on localStorage, then system preference, then default to light.
+    // This runs before React to prevent FOUC (Flash Of Unstyled Content).
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+      // Ensure localStorage is set if relying on system preference for the first time.
+      // The React app will also manage this, but this helps if the script runs before React fully loads.
+      if (!storedTheme) localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      if (!storedTheme) localStorage.setItem('theme', 'light');
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif; /* A nice sans-serif font */
+    }
+    /* Default (Light) scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9; /* slate-100 */
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1; /* slate-300 */
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8; /* slate-400 */
+    }
+
+    /* Dark theme scrollbars */
+    .dark ::-webkit-scrollbar-track {
+      background: #1e293b; /* slate-800 */
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #334155; /* slate-700 */
+    }
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #475569; /* slate-600 */
+    }
+
+    /* Ensure scrollbar for tab navigation on smaller screens if needed */
+    .overflow-x-auto::-webkit-scrollbar {
+        height: 4px; /* Slimmer scrollbar for horizontal nav */
+    }
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+        background: #94a3b8; /* slate-400 */
+    }
+    .dark .overflow-x-auto::-webkit-scrollbar-thumb {
+        background: #475569; /* slate-600 */
+    }
+    .overflow-x-auto {
+      scrollbar-width: thin; /* Firefox */
+      scrollbar-color: #94a3b8 #f1f5f9; /* Firefox - thumb track */
+    }
+    .dark .overflow-x-auto {
+      scrollbar-color: #475569 #1e293b; /* Firefox - thumb track dark */
+    }
+
+    /* Tab content fade-in animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+  }
+}
+</script>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
