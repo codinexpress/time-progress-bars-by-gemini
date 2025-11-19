@@ -4,93 +4,171 @@ import { FEEDBACK_API_APP_KEY } from '../types';
 const API_BASE_URL = 'https://keyvalue.immanuel.co/api/KeyVal';
 
 /**
+ * Helper to encode string to URL-safe Base64 (handles Unicode)
+ * Strips padding '=' to be URL path friendly.
+ */
+function toUrlSafeBase64(str: string): string {
+  try {
+    // Encode URI component to handle unicode chars correctly in btoa
+    const base64 = btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+        function toSolidBytes(match, p1) {
+            return String.fromCharCode(parseInt(p1, 16));
+        }));
+    // Make URL safe: + -> -, / -> _, remove padding =
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch (e) {
+    console.error("Encoding error", e);
+    return "";
+  }
+}
+
+/**
+ * Helper to decode URL-safe Base64 to string (handles Unicode)
+ * Handles missing padding or legacy padding chars.
+ */
+function fromUrlSafeBase64(base64: string): string {
+  try {
+    // Revert URL safe chars: - -> +, _ -> /
+    // Also handle legacy '.' padding if present from previous versions
+    let str = base64.replace(/-/g, '+').replace(/_/g, '/').replace(/\./g, '=');
+    
+    // Restore padding if missing
+    while (str.length % 4) {
+      str += '=';
+    }
+
+    // Decode
+    return decodeURIComponent(atob(str).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+  } catch (e) {
+    // Fallback if it wasn't base64 or valid
+    return base64;
+  }
+}
+
+/**
  * Fetches a numeric value for a given key.
- * Returns the number, 0 if key not found (404) or parsing fails for specific "empty" API responses, 
- * or null for other errors.
  */
 export async function getValue(key: string): Promise<number | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/GetValue/${FEEDBACK_API_APP_KEY}/${key}`);
+    const response = await fetch(`${API_BASE_URL}/GetValue/${FEEDBACK_API_APP_KEY}/${key}`, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+    });
     if (!response.ok) {
-      if (response.status === 404) {
-        return 0; // Key not found, treat as 0 for numeric counts
-      }
-      console.error(`API Error (${response.status}) fetching value for key "${key}": ${response.statusText}`);
-      return null; // Other HTTP error
+      if (response.status === 404) return 0;
+      return null;
     }
     const textValue = await response.text();
 
-    // Handle specific case where API returns literal '""' for uninitialized/empty numeric values
-    if (textValue === '""') { 
-      return 0; // Interpret as 0 without warning
-    }
-    
-    // Also handle if the API returns an actual empty string (less common for numeric values from this API, but good practice)
-    if (textValue.trim() === '') {
-        return 0; // Interpret as 0 without warning
-    }
+    if (textValue === '""' || textValue.trim() === '') return 0;
 
-    // Attempt to parse as JSON first.
-    // This handles:
-    // 1. API returns a JSON string representing a number: "\"123\"" -> jsonParsedValue becomes "123" (string)
-    // 2. API returns a bare number as a string: "123" -> jsonParsedValue becomes 123 (number)
-    // 3. API returns other JSON types: "true", "null", "{\"a\":1}" which are not numbers.
+    // Attempt to parse as JSON first
     try {
       const jsonParsedValue = JSON.parse(textValue);
-      if (typeof jsonParsedValue === 'number') {
-        return jsonParsedValue; // Handles case 2: e.g., textValue was "123" or "1.23"
-      }
-      // Handles case 1: e.g., textValue was "\"123\"". jsonParsedValue is the string "123"
+      if (typeof jsonParsedValue === 'number') return jsonParsedValue;
       if (typeof jsonParsedValue === 'string') {
-        const numValueFromString = parseInt(jsonParsedValue, 10);
-        if (!isNaN(numValueFromString)) {
-          return numValueFromString;
-        }
-        // If jsonParsedValue is a string but not a number (e.g. "\"abc\""), it will fall through.
+        const parsed = parseInt(jsonParsedValue, 10);
+        return isNaN(parsed) ? 0 : parsed;
       }
-      // If jsonParsedValue is any other JSON type (boolean, null, object, array), it will fall through.
     } catch (e) {
-      // textValue was not a valid JSON string.
-      // This can happen if textValue is an unquoted string like "abc", or a simple number "123"
-      // (though many JSON.parse implementations handle "123" fine, converting to number).
-      // Fall through to direct parseInt of the original textValue.
+      // Fallback for plain text
     }
 
-    // If JSON parsing failed, or it parsed but didn't yield a usable number (e.g. parsed to a boolean or non-numeric string),
-    // try a direct parseInt of the original textValue.
-    // This is robust for plain number strings like "123", "0", "-5".
     const directNumValue = parseInt(textValue, 10);
-    if (!isNaN(directNumValue)) {
-      return directNumValue;
+    return isNaN(directNumValue) ? 0 : directNumValue;
+
+  } catch (error) {
+    console.error(`Network error fetching value for key "${key}":`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches a string value for a given key.
+ * Automatically handles Base64 decoding if detected.
+ */
+export async function getStringValue(key: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/GetValue/${FEEDBACK_API_APP_KEY}/${key}`, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      return null;
     }
     
-    // If all parsing attempts fail (e.g., textValue was "abc", "true", or some other non-numeric string)
-    console.warn(`Could not parse value for key "${key}" as number from text: "${textValue}". Defaulting to 0.`);
-    return 0;
+    let textValue = await response.text();
+    
+    // Clean up quotes if the API returns them as JSON strings
+    if (textValue.startsWith('"') && textValue.endsWith('"')) {
+        try {
+            textValue = JSON.parse(textValue);
+        } catch (e) {
+            // If parse fails, keep original
+        }
+    }
 
-  } catch (error) { // Catches network errors, or errors from response.text() itself
-    console.error(`Network or other error fetching value for key "${key}":`, error);
-    return null; // Indicate a more severe fetching problem
+    // Try to decode if it looks like our custom format or generic string
+    if (!textValue.startsWith('{') && !textValue.startsWith('[')) {
+       const decoded = fromUrlSafeBase64(textValue);
+       // If decoding yielded a JSON-like structure or a readable string, return it.
+       // Simple check: if decoded is different, it was likely base64.
+       if (decoded !== textValue) {
+         return decoded;
+       }
+    }
+
+    return textValue;
+  } catch (error) {
+    console.error(`Network error fetching string for key "${key}":`, error);
+    return null;
   }
 }
 
 /**
  * Updates a numeric value for a given key.
- * The API expects a POST request with the value in the URL path.
- * Returns true on success, false on failure.
  */
 export async function updateValue(key: string, value: number): Promise<boolean> {
   try {
     const response = await fetch(`${API_BASE_URL}/UpdateValue/${FEEDBACK_API_APP_KEY}/${key}/${String(value)}`, {
       method: 'POST',
+      mode: 'cors',
     });
-    if (!response.ok) {
-      console.error(`API Error (${response.status}) updating value for key "${key}" to ${value}: ${response.statusText}`);
-      return false;
-    }
-    return true;
+    return response.ok;
   } catch (error) {
-    console.error(`Network or other error updating value for key "${key}" to ${value}:`, error);
+    console.error(`Error updating value for key "${key}":`, error);
+    return false;
+  }
+}
+
+/**
+ * Updates a string value for a given key.
+ * Uses URL-Safe Base64 encoding to prevent URL path issues.
+ */
+export async function updateStringValue(key: string, value: string): Promise<boolean> {
+  try {
+    // 1. Encode to URL-Safe Base64
+    const encodedValue = toUrlSafeBase64(value);
+    
+    if (!encodedValue) {
+        throw new Error("Encoding failed");
+    }
+
+    // 2. Send
+    // Use encodeURIComponent to ensure the Base64 string is treated as a safe path segment.
+    const response = await fetch(`${API_BASE_URL}/UpdateValue/${FEEDBACK_API_APP_KEY}/${key}/${encodeURIComponent(encodedValue)}`, {
+      method: 'POST',
+      mode: 'cors',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error(`Error updating string for key "${key}":`, error);
     return false;
   }
 }

@@ -1,7 +1,6 @@
-
 import { useEffect, useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import { AppSettings, Theme } from '../types';
+import { AppSettings, Theme, TimeUnitId } from '../types';
 
 const defaultAppSettings: AppSettings = {
   theme: 'light',
@@ -9,6 +8,8 @@ const defaultAppSettings: AppSettings = {
   visualizationMode: 'bars',
   updateIntervalMs: 200,
   customColors: {},
+  globalDecimalPlaces: 2,
+  decimalPlaceOverrides: {},
 };
 
 export const useAppSettings = () => {
@@ -54,6 +55,18 @@ export const useAppSettings = () => {
     }));
   }, [setSettings]);
 
+  const updateDecimalOverride = useCallback((unitId: TimeUnitId, value: number | null) => {
+    setSettings(prev => {
+      const newOverrides = { ...prev.decimalPlaceOverrides };
+      if (value === null) {
+        delete newOverrides[unitId];
+      } else {
+        newOverrides[unitId] = value;
+      }
+      return { ...prev, decimalPlaceOverrides: newOverrides };
+    });
+  }, [setSettings]);
+
   const resetColors = useCallback(() => {
     setSettings(prev => ({ ...prev, customColors: {} }));
   }, [setSettings]);
@@ -68,6 +81,7 @@ export const useAppSettings = () => {
     settings,
     updateSetting,
     updateColor,
+    updateDecimalOverride,
     resetColors,
     resetAllSettings
   };

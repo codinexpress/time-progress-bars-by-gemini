@@ -12,6 +12,7 @@ const RadialSlice: React.FC<RadialSliceProps> = ({
   mainValueColor, 
   isMaximized = false,
   sizeClassName,
+  decimalPlaces,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const viewBoxSize = 100;
@@ -73,7 +74,7 @@ const RadialSlice: React.FC<RadialSliceProps> = ({
         className={`${percentTextSize} font-bold mt-2 font-mono`}
         style={{ color: percentageColor }}
       >
-        {clampedPercentage.toFixed(1)}%
+        {clampedPercentage.toFixed(decimalPlaces)}%
       </div>
       
       {details && (

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export type Theme = 'light' | 'dark';
@@ -33,6 +34,7 @@ export interface BaseVisualizationProps {
   mainValueColor?: string;
   isMaximized?: boolean;
   sizeClassName?: string; // For controlling the width/height of circular visualizations
+  decimalPlaces: number; // New prop for precision control
 }
 
 export interface ProgressBarProps extends BaseVisualizationProps {
@@ -87,18 +89,25 @@ export type CustomColors = {
   [key in TimeUnitId]?: string; // Stores hex color strings
 };
 
+export type DecimalOverrides = {
+  [key in TimeUnitId]?: number; // Stores number of decimal places
+};
+
 export interface AppSettings {
   theme: Theme;
   weekStartDay: WeekStartDay;
   visualizationMode: VisualizationMode;
   updateIntervalMs: number;
   customColors: CustomColors;
+  globalDecimalPlaces: number;
+  decimalPlaceOverrides: DecimalOverrides;
 }
 
 export interface SettingsProps {
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onResetAllSettings: () => void;
+  onDecimalOverrideChange: (unitId: TimeUnitId, value: number | null) => void;
 }
 
 export interface ColorCustomizerProps {
@@ -117,11 +126,6 @@ export interface Comment {
 
 export interface CommentData { 
   comments: Comment[];
-}
-
-export interface CommentSectionProps {
-  apiKey: string; 
-  appTheme: Theme; 
 }
 
 // New types for Feedback System

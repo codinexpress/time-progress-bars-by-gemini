@@ -1,9 +1,16 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Comment, CommentData, CommentSectionProps } from '../types';
+import { Comment, Theme } from '../types';
+import { getValue, updateValue, updateStringValue, getStringValue } from '../utils/apiUtils';
 
-const COMMENTS_API_BASE_URL = 'https://json.extendsclass.com/bin';
-const COMMENTS_BIN_ID_STORAGE_KEY = 'temporalFluxCommentsBinId_v2'; // Versioned key
+interface CommentSectionProps {
+  appTheme: Theme;
+}
+
+// Circular Buffer Configuration
+const MAX_COMMENTS = 100;
+const CURSOR_KEY = 'tf_chat_cursor_v5'; 
+const MSG_KEY_PREFIX = 'tf_chat_msg_v5_';
 
 const formatCommentTimestamp = (isoTimestamp: string): string => {
   const date = new Date(isoTimestamp);
@@ -22,151 +29,97 @@ const formatCommentTimestamp = (isoTimestamp: string): string => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-const CommentSection: React.FC<CommentSectionProps> = ({ apiKey, appTheme }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [binId, setBinId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [statusMessage, setStatusMessage] = useState<string>('Syncing...');
   const [error, setError] = useState<string | null>(null);
   const [nameInput, setNameInput] = useState<string>('');
   const [commentInput, setCommentInput] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const handleApiError = useCallback(async (response: Response, context: string): Promise<string> => {
-    const status = response.status;
-    const statusText = response.statusText || 'N/A';
-    // Default user-facing message for unexpected responses
-    let userFacingErrorMessage = `Error in ${context.toLowerCase()}: The server returned an unexpected response. Please try again later. (Code: ${status})`;
-    // Detailed message for console logging
-    let technicalDetailForLogging = `${context} (Status: ${status} ${statusText})`;
-
-    try {
-      // Attempt to parse response as JSON
-      const errorData = await response.json();
-      if (errorData && errorData.message) {
-        // API returned JSON with a message field
-        technicalDetailForLogging = `${context}: API Error Message: "${errorData.message}" (Status: ${status})`;
-        userFacingErrorMessage = `${context}: ${errorData.message}`; // Use API's message if available
-      } else {
-        // API returned JSON but no 'message' field or unexpected structure
-        const responsePreview = JSON.stringify(errorData);
-        technicalDetailForLogging = `${context}: Received JSON response without 'message' field or with unexpected structure (Status: ${status}). Response: ${responsePreview.substring(0,200)}${responsePreview.length > 200 ? '...' : ''}`;
-        userFacingErrorMessage = `Error in ${context.toLowerCase()}: Unexpected data format from server. (Code: ${status})`;
-      }
-    } catch (jsonError) {
-      // JSON parsing failed, so response is not JSON (e.g., HTML, plain text)
-      let responseBodyAsText = '';
-      try {
-        // Try to read the response body as text.
-        // Note: response.text() consumes the body. If response.json() failed due to invalid syntax
-        // (like encountering '<' in HTML), the body stream might be disturbed.
-        // Robust handling might involve checking Content-Type first or cloning response.
-        responseBodyAsText = await response.text();
-        
-        if (responseBodyAsText.trim().toLowerCase().startsWith('<!doctype html') || responseBodyAsText.trim().toLowerCase().startsWith('<html')) {
-          // Response is HTML
-          technicalDetailForLogging = `${context}: Server returned HTML (Status: ${status}). Preview: ${responseBodyAsText.substring(0, 250)}${responseBodyAsText.length > 250 ? '...' : ''}`;
-          userFacingErrorMessage = `Error in ${context.toLowerCase()}: The comment service returned an HTML page. This might indicate an API key problem, rate limiting, or a service issue. (Code: ${status})`;
-        } else {
-          // Response is non-JSON, non-HTML text
-          technicalDetailForLogging = `${context}: Server returned non-JSON text (Status: ${status}). Preview: ${responseBodyAsText.substring(0, 250)}${responseBodyAsText.length > 250 ? '...' : ''}`;
-          userFacingErrorMessage = `Error in ${context.toLowerCase()}: The server sent an unexpected text response. (Code: ${status})`;
-        }
-      } catch (textReadError) {
-        // Failed to read response body as text after JSON parsing failed
-        technicalDetailForLogging = `${context}: Failed to read response body as text after JSON parsing failed. (Status: ${status}, JSON Parse Error: ${jsonError}, Text Read Error: ${textReadError})`;
-        userFacingErrorMessage = `Error in ${context.toLowerCase()}: Failed to read error response from server. (Code: ${status})`;
-      }
-    }
-
-    console.error('API Error Details:', technicalDetailForLogging, {
-      requestContext: context,
-      responseStatus: status,
-      responseStatusText: statusText,
-      responseHeaders: response.headers ? Object.fromEntries(response.headers.entries()) : 'N/A',
-    });
-    
-    return userFacingErrorMessage; // Return the user-friendly message for UI display
-  }, []);
-
-
-  const createCommentsBin = useCallback(async () => {
+  const fetchComments = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setStatusMessage('Syncing neural feed...');
+    
     try {
-      const response = await fetch(COMMENTS_API_BASE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Api-key': apiKey, 
-        },
-        body: JSON.stringify({ comments: [] } as CommentData),
+      // 1. Get the Global Cursor (Total comments ever posted)
+      const cursor = await getValue(CURSOR_KEY);
+      const totalCount = cursor || 0;
+
+      if (totalCount === 0) {
+        setComments([]);
+        setIsLoading(false);
+        setStatusMessage('');
+        return;
+      }
+
+      // 2. Determine which slots to fetch (Last MAX_COMMENTS)
+      const fetchPromises: Promise<string | null>[] = [];
+      const countToFetch = Math.min(totalCount, MAX_COMMENTS);
+
+      // We loop backwards from the current cursor to get latest first
+      for (let i = 0; i < countToFetch; i++) {
+        // The cursor points to the *last written* index (logically).
+        const logicalIndex = totalCount - i;
+        const slot = (logicalIndex - 1) % MAX_COMMENTS;
+        const key = `${MSG_KEY_PREFIX}${slot}`;
+        fetchPromises.push(getStringValue(key));
+      }
+
+      // 3. Fetch in Batches
+      // Batching is crucial to avoid browser connection limits and network errors ("Failed to fetch")
+      const BATCH_SIZE = 10;
+      const results: (string | null)[] = [];
+      
+      for (let i = 0; i < fetchPromises.length; i += BATCH_SIZE) {
+        setStatusMessage(`Syncing... (${Math.min(i + BATCH_SIZE, fetchPromises.length)}/${countToFetch})`);
+        const batch = fetchPromises.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(batch);
+        results.push(...batchResults);
+        
+        // Small delay to yield to main thread and network stack
+        if (i + BATCH_SIZE < fetchPromises.length) {
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+
+      // 4. Parse and Filter
+      const fetchedComments: Comment[] = [];
+      results.forEach((res) => {
+        if (res) {
+          try {
+            const parsed = JSON.parse(res);
+            if (parsed && parsed.text) {
+              fetchedComments.push(parsed);
+            }
+          } catch (e) {
+            // Ignore corrupted slots
+          }
+        }
       });
 
-      if (response.ok) {
-        const newBinInfo = await response.json();
-        if (newBinInfo.id) {
-          localStorage.setItem(COMMENTS_BIN_ID_STORAGE_KEY, newBinInfo.id);
-          setBinId(newBinInfo.id);
-          setComments([]); 
-        } else {
-          throw new Error('Failed to create comments bin: No ID returned in successful response.');
-        }
-      } else {
-        const errorMessage = await handleApiError(response, 'Failed to create comments bin');
-        throw new Error(errorMessage);
-      }
+      // Sort just in case, though the fetch order is roughly chronological reversed
+      fetchedComments.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      setComments(fetchedComments);
+      setStatusMessage('');
     } catch (err) {
-      // handleApiError has already logged detailed technical info.
-      // err.message here will be the user-facing message from handleApiError or other specific errors.
-      const messageToDisplay = err instanceof Error ? err.message : 'An unknown error occurred while creating the comment section.';
-      console.error(`User-facing error after attempting to create comments bin: ${messageToDisplay}`);
-      setError(messageToDisplay);
-      setComments([]); 
+      console.error(err);
+      setError('Failed to retrieve transmission.');
     } finally {
       setIsLoading(false);
     }
-  }, [apiKey, handleApiError]);
-
-  const fetchComments = useCallback(async (currentBinId: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${COMMENTS_API_BASE_URL}/${currentBinId}`);
-      if (response.ok) {
-        const data: CommentData = await response.json();
-        setComments(Array.isArray(data.comments) ? data.comments.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : []);
-      } else if (response.status === 404) {
-        localStorage.removeItem(COMMENTS_BIN_ID_STORAGE_KEY);
-        await createCommentsBin(); 
-        return; 
-      } else {
-        const errorMessage = await handleApiError(response, 'Failed to fetch comments');
-        throw new Error(errorMessage);
-      }
-    } catch (err) {
-      const messageToDisplay = err instanceof Error ? err.message : 'An unknown error occurred while fetching comments.';
-      console.error(`User-facing error after attempting to fetch comments: ${messageToDisplay}`);
-      setError(messageToDisplay);
-      setComments([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [createCommentsBin, handleApiError]);
-
+  }, []);
 
   useEffect(() => {
-    const storedBinId = localStorage.getItem(COMMENTS_BIN_ID_STORAGE_KEY);
-    if (storedBinId) {
-      setBinId(storedBinId);
-      fetchComments(storedBinId);
-    } else {
-      createCommentsBin();
-    }
-  }, [fetchComments, createCommentsBin]);
+    fetchComments();
+  }, [fetchComments]);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentInput.trim() || !binId || isSubmitting) return;
+    if (!commentInput.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -179,38 +132,35 @@ const CommentSection: React.FC<CommentSectionProps> = ({ apiKey, appTheme }) => 
     };
 
     try {
-      const currentCommentsResponse = await fetch(`${COMMENTS_API_BASE_URL}/${binId}`);
-      let existingComments: Comment[] = [];
-      if (currentCommentsResponse.ok) {
-          const data: CommentData = await currentCommentsResponse.json();
-          existingComments = Array.isArray(data.comments) ? data.comments : [];
-      } else if (currentCommentsResponse.status !== 404) { 
-          const fetchErrMessage = await handleApiError(currentCommentsResponse, 'Failed to fetch current comments before update');
-          throw new Error(fetchErrMessage);
-      }
-      
-      const updatedComments = [newComment, ...existingComments]; 
-      
-      const response = await fetch(`${COMMENTS_API_BASE_URL}/${binId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ comments: updatedComments } as CommentData),
-      });
+      // Optimistic UI update
+      setComments(prev => [newComment, ...prev]);
+      setCommentInput('');
 
-      if (response.ok) {
-        setComments(updatedComments.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-        setNameInput('');
-        setCommentInput('');
-      } else {
-        const postErrMessage = await handleApiError(response, 'Failed to post comment');
-        throw new Error(postErrMessage);
-      }
+      // 1. Get current cursor
+      const currentCursor = await getValue(CURSOR_KEY) || 0;
+      
+      // 2. Calculate new slot
+      const newCursor = currentCursor + 1;
+      const slot = (newCursor - 1) % MAX_COMMENTS;
+      
+      // 3. Write Comment to its own key pair
+      // Using updateStringValue which now handles safe Base64 encoding
+      const key = `${MSG_KEY_PREFIX}${slot}`;
+      const successWrite = await updateStringValue(key, JSON.stringify(newComment));
+      
+      if (!successWrite) throw new Error("Failed to uplink message. Network may be busy.");
+
+      // 4. Update Cursor
+      const successCursor = await updateValue(CURSOR_KEY, newCursor);
+      
+      if (!successCursor) console.warn("Cursor update failed, but comment might be saved.");
+
     } catch (err) {
-      const messageToDisplay = err instanceof Error ? err.message : 'An unknown error occurred while posting the comment.';
-      console.error(`User-facing error after attempting to post comment: ${messageToDisplay}`);
-      setError(messageToDisplay);
+      const msg = err instanceof Error ? err.message : 'Transmission failed';
+      setError(msg);
+      // Revert optimistic update on hard fail
+      // We delay this slightly to not jar the user immediately if it's a minor network blip
+      setTimeout(fetchComments, 1000);
     } finally {
       setIsSubmitting(false);
     }
@@ -226,19 +176,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({ apiKey, appTheme }) => 
       ? 'bg-sky-600 hover:bg-sky-500 text-white focus:ring-sky-400 focus:ring-offset-slate-800 disabled:bg-sky-800 disabled:text-slate-400 disabled:cursor-not-allowed' 
       : 'bg-sky-500 hover:bg-sky-600 text-white focus:ring-sky-500 focus:ring-offset-slate-100 disabled:bg-sky-300 disabled:text-slate-500 disabled:cursor-not-allowed'}`;
 
-
-  if (isLoading && !comments.length && !binId) { 
-    return <div className="text-center p-10 text-slate-500 dark:text-slate-400">Initializing comment section...</div>;
-  }
-   if (isLoading && !comments.length && binId) { 
-    return <div className="text-center p-10 text-slate-500 dark:text-slate-400">Loading comments...</div>;
-  }
-
-
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmitComment} className="space-y-3 p-4 rounded-lg bg-slate-100 dark:bg-slate-700/50 shadow">
-        <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3">Leave a Comment</h2>
+        <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3 flex justify-between items-center">
+          <span>Leave a Comment</span>
+          <span className="text-xs font-normal text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded">Max 100 (Rolling)</span>
+        </h2>
         <div>
           <label htmlFor="commentAuthor" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
             Name (Optional)
@@ -250,7 +194,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ apiKey, appTheme }) => 
             onChange={(e) => setNameInput(e.target.value)}
             placeholder="Your name"
             className={inputClass}
-            aria-label="Your name (optional)"
+            maxLength={40}
           />
         </div>
         <div>
@@ -265,13 +209,15 @@ const CommentSection: React.FC<CommentSectionProps> = ({ apiKey, appTheme }) => 
             rows={3}
             required
             className={`${inputClass} min-h-[60px]`}
-            aria-label="Your comment"
-            aria-required="true"
+            maxLength={500}
           />
+          <div className="text-right text-[10px] text-slate-400 mt-1">
+             {commentInput.length}/500
+          </div>
         </div>
         <div className="flex items-center justify-end space-x-3 pt-1">
-            {isSubmitting && <span className="text-xs text-slate-500 dark:text-slate-400">Submitting...</span>}
-            <button type="submit" disabled={!binId || isSubmitting || !commentInput.trim()} className={buttonClass}>
+            {isSubmitting && <span className="text-xs text-slate-500 dark:text-slate-400">Broadcasting...</span>}
+            <button type="submit" disabled={isSubmitting || !commentInput.trim()} className={buttonClass}>
              Post Comment
             </button>
         </div>
@@ -279,15 +225,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({ apiKey, appTheme }) => 
       </form>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">
-          {comments.length > 0 ? `${comments.length} Comment${comments.length === 1 ? '' : 's'}` : (binId && !error ? 'No comments yet.' : (error ? 'Could not load comments.' : 'Comment section initializing...'))}
-        </h3>
-        {isLoading && comments.length > 0 && <div className="text-sm text-slate-500 dark:text-slate-400 text-center py-2">Refreshing comments...</div>}
-        {!isLoading && comments.length === 0 && !error && binId && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Be the first to comment!</p>
+        <div className="flex justify-between items-baseline border-b border-slate-200 dark:border-slate-700 pb-2">
+           <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">
+              {comments.length > 0 ? `${comments.length} Comment${comments.length === 1 ? '' : 's'}` : 'Discussion'}
+           </h3>
+           {isLoading && <span className="text-xs text-sky-500 animate-pulse">{statusMessage}</span>}
+           {!isLoading && !error && <button onClick={fetchComments} className="text-xs text-sky-500 hover:underline">Refresh</button>}
+        </div>
+        
+        {!isLoading && comments.length === 0 && !error && (
+          <div className="text-center py-8 text-slate-400 dark:text-slate-500 italic">
+            No signals detected. Be the first to broadcast.
+          </div>
         )}
         
-        <ul aria-live="polite" className="space-y-4 max-h-[500px] overflow-y-auto pr-2 -mr-2  scrollbar-thin scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600 dark:hover:scrollbar-thumb-slate-500 scrollbar-track-transparent">
+        <ul aria-live="polite" className="space-y-4 max-h-[500px] overflow-y-auto pr-2 -mr-2 scrollbar-thin scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600 dark:hover:scrollbar-thumb-slate-500 scrollbar-track-transparent">
           {comments.map((comment) => (
             <li key={comment.id} className="p-3 rounded-md bg-slate-50 dark:bg-slate-700/30 shadow-sm border border-slate-200 dark:border-slate-600/50">
               <div className="flex justify-between items-start mb-1">

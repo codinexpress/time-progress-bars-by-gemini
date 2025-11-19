@@ -11,6 +11,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   textColor = 'text-slate-700 dark:text-slate-300',
   showPercentageText = true,
   isMaximized = false,
+  decimalPlaces,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
 
@@ -35,7 +36,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
         </div>
         {showPercentageText && (
           <span className={`${percentageTextSize} font-bold font-mono tabular-nums leading-none`}>
-            {clampedPercentage.toFixed(2)}%
+            {clampedPercentage.toFixed(decimalPlaces)}%
           </span>
         )}
       </div>

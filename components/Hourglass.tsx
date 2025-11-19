@@ -12,6 +12,7 @@ const Hourglass: React.FC<HourglassProps> = ({
   mainValueColor, 
   isMaximized = false,
   sizeClassName,
+  decimalPlaces,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const viewBoxWidth = 100;
@@ -93,7 +94,7 @@ const Hourglass: React.FC<HourglassProps> = ({
           className={`absolute inset-0 flex items-center justify-center ${percentTextSize} font-bold font-mono`}
           style={{ color: percentageColor, textShadow: '0 1px 2px rgba(255,255,255,0.5)' }}
         >
-          {clampedPercentage.toFixed(1)}%
+          {clampedPercentage.toFixed(decimalPlaces)}%
         </div>
       </div>
       

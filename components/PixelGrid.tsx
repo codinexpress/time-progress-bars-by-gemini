@@ -14,6 +14,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
   gridCols = 10,
   isMaximized = false,
   sizeClassName,
+  decimalPlaces,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const totalPixels = gridRows * gridCols;
@@ -76,7 +77,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
         className={`${percentTextSize} font-bold font-mono`}
         style={{ color: percentageColor }}
       >
-          {clampedPercentage.toFixed(1)}%
+          {clampedPercentage.toFixed(decimalPlaces)}%
       </div>
       
       {details && (

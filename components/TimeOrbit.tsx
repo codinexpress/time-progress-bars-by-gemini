@@ -12,6 +12,7 @@ const TimeOrbit: React.FC<TimeOrbitProps> = ({
   mainValueColor,
   isMaximized = false,
   sizeClassName,
+  decimalPlaces,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const angle = (clampedPercentage / 100) * 360 - 90; 
@@ -66,7 +67,7 @@ const TimeOrbit: React.FC<TimeOrbitProps> = ({
           className={`absolute inset-0 flex items-center justify-center ${percentTextSize} font-bold font-mono`}
           style={{ color: percentageColor }}
         >
-          {clampedPercentage.toFixed(1)}%
+          {clampedPercentage.toFixed(decimalPlaces)}%
         </div>
       </div>
       

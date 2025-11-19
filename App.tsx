@@ -14,13 +14,12 @@ import { useTime } from './hooks/useTime';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useFeedback } from './hooks/useFeedback';
 
-const EXTENDSCLASS_API_KEY = "d9892a88-3e66-11f0-8efd-0242ac110009";
-
 const App: React.FC = () => {
   const { 
     settings, 
     updateSetting, 
     updateColor, 
+    updateDecimalOverride,
     resetColors, 
     resetAllSettings 
   } = useAppSettings();
@@ -126,6 +125,7 @@ const App: React.FC = () => {
               settings={settings}
               onSettingChange={updateSetting}
               onResetAllSettings={handleResetAll}
+              onDecimalOverrideChange={updateDecimalOverride}
             />
           )}
           
@@ -140,7 +140,6 @@ const App: React.FC = () => {
           
           {!isFocusMode && activeTab === 'comments' && (
             <CommentSection 
-              apiKey={EXTENDSCLASS_API_KEY} 
               appTheme={settings.theme} 
             />
           )}

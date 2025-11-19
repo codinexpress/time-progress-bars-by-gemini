@@ -25,10 +25,13 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
   onClose,
   isMaximized = false 
 }) => {
-  const { visualizationMode, customColors, weekStartDay, theme } = settings;
+  const { visualizationMode, customColors, weekStartDay, theme, globalDecimalPlaces, decimalPlaceOverrides } = settings;
 
   const effectiveHexColor = customColors[config.id] || config.baseColor;
   const details = config.getDetails(currentTime, weekStartDay);
+  
+  // Determine decimal places: Override > Global > Default (2)
+  const decimalPlaces = decimalPlaceOverrides[config.id] ?? globalDecimalPlaces ?? 2;
 
   const colors = useMemo(() => {
     return {
@@ -51,6 +54,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
     textColor: colors.cardGeneralTextColor,
     mainValueColor: colors.unitSpecificText,
     isMaximized: isMaximized,
+    decimalPlaces: decimalPlaces,
   };
   
   const cardBaseClass = `relative w-full rounded-xl shadow-xl backdrop-blur-md border transition-all duration-300 
