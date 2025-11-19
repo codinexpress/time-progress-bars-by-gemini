@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PixelGridProps } from '../types';
 
 const PixelGrid: React.FC<PixelGridProps> = ({
@@ -7,56 +6,74 @@ const PixelGrid: React.FC<PixelGridProps> = ({
   percentage,
   details,
   icon,
-  pixelColor = '#0ea5e9', // Default hex (sky-500)
-  emptyPixelColor = '#0ea5e933', // Default hex with alpha (sky-500 at 20% opacity)
+  pixelColor = '#0ea5e9',
+  emptyPixelColor = '#0ea5e933',
   textColor = 'text-slate-700 dark:text-slate-300', 
   mainValueColor, 
-  gridRows = 10,
+  gridRows = 8,
   gridCols = 10,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const totalPixels = gridRows * gridCols;
   const filledPixels = Math.round((clampedPercentage / 100) * totalPixels);
-
-  const pixels = Array.from({ length: totalPixels }, (_, i) => ({
-    filled: i < filledPixels,
-  }));
   
   const percentageColor = mainValueColor || pixelColor;
 
+  // SVG Parameters
+  const pixelSize = 10;
+  const gap = 2;
+  const width = gridCols * pixelSize + (gridCols - 1) * gap;
+  const height = gridRows * pixelSize + (gridRows - 1) * gap;
+
+  const pixels = useMemo(() => {
+    const pixelRects = [];
+    for (let i = 0; i < totalPixels; i++) {
+      const row = Math.floor(i / gridCols);
+      const col = i % gridCols;
+      const x = col * (pixelSize + gap);
+      const y = row * (pixelSize + gap);
+      const isFilled = i < filledPixels;
+      
+      pixelRects.push(
+        <rect
+          key={i}
+          x={x}
+          y={y}
+          width={pixelSize}
+          height={pixelSize}
+          fill={isFilled ? pixelColor : emptyPixelColor}
+          rx={1.5}
+          className="transition-colors duration-300 ease-in-out"
+        />
+      );
+    }
+    return pixelRects;
+  }, [totalPixels, filledPixels, gridCols, pixelSize, gap, pixelColor, emptyPixelColor]);
+
   return (
-    <div className={`p-3 sm:p-4 flex flex-col items-center ${textColor}`}> {/* Removed card classes */}
-      <div className="flex items-center space-x-2 mb-2">
+    <div className={`p-4 flex flex-col items-center ${textColor}`}>
+      <div className="flex items-center space-x-2 mb-3">
         {icon && <span className="w-5 h-5 sm:w-6 sm:h-6">{icon}</span>}
-        <span className="text-sm sm:text-md font-semibold">{label}</span>
+        <span className="text-sm sm:text-md font-bold uppercase tracking-wide">{label}</span>
       </div>
 
-      <div 
-        className="grid gap-0.5 sm:gap-1 mb-2" 
-        style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)`, width: '100%', maxWidth: '200px' }}
-        role="img"
-        aria-label={`${label}: ${clampedPercentage.toFixed(1)}%`}
-      >
-        {pixels.map((pixel, index) => (
-          <div
-            key={index}
-            className="aspect-square rounded-[1px] sm:rounded-sm transition-colors duration-150"
-            style={{ backgroundColor: pixel.filled ? pixelColor : emptyPixelColor }}
-          ></div>
-        ))}
+      <div className="relative mb-3" style={{ maxWidth: '240px', width: '100%' }}>
+         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto drop-shadow-sm">
+           {pixels}
+         </svg>
       </div>
+
        <div 
-        className="text-lg sm:text-xl font-bold"
+        className="text-xl sm:text-2xl font-bold font-mono"
         style={{ color: percentageColor }}
       >
           {clampedPercentage.toFixed(1)}%
       </div>
       
       {details && (
-        <div className={`mt-2 text-xs text-center space-y-0.5 w-full ${textColor}`}>
-          <p><strong className="font-semibold">Elapsed:</strong> {details.elapsed}</p>
-          <p><strong className="font-semibold">Remaining:</strong> {details.remaining}</p>
-          <p><strong className="font-semibold">Period:</strong> {details.period}</p>
+        <div className={`mt-3 text-xs text-center space-y-1 w-full ${textColor} opacity-80`}>
+          <div className="flex justify-between px-2"><span>Elapsed:</span> <span className="font-mono">{details.elapsed}</span></div>
+          <div className="flex justify-between px-2"><span>Remaining:</span> <span className="font-mono">{details.remaining}</span></div>
         </div>
       )}
     </div>

@@ -6,13 +6,26 @@
   <title>Time Progress Bars</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Orbitron', 'monospace'],
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
+          },
+        }
+      }
+    }
+  </script>
+  <script>
     // Initialize theme based on localStorage, then system preference, then default to light.
-    // This runs before React to prevent FOUC (Flash Of Unstyled Content).
     const storedTheme = localStorage.getItem('theme');
     if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
-      // Ensure localStorage is set if relying on system preference for the first time.
-      // The React app will also manage this, but this helps if the script runs before React fully loads.
       if (!storedTheme) localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
@@ -21,66 +34,60 @@
   </script>
   <style>
     body {
-      font-family: 'Inter', sans-serif; /* A nice sans-serif font */
+      font-family: 'Inter', sans-serif;
     }
-    /* Default (Light) scrollbars */
+    
+    /* Custom Scrollbars */
     ::-webkit-scrollbar {
       width: 8px;
       height: 8px;
     }
     ::-webkit-scrollbar-track {
-      background: #f1f5f9; /* slate-100 */
+      background: transparent; 
     }
     ::-webkit-scrollbar-thumb {
-      background: #cbd5e1; /* slate-300 */
+      background: #cbd5e1; 
       border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: content-box;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8; /* slate-400 */
+      background: #94a3b8; 
+      border: 2px solid transparent;
+      background-clip: content-box;
     }
 
-    /* Dark theme scrollbars */
-    .dark ::-webkit-scrollbar-track {
-      background: #1e293b; /* slate-800 */
-    }
     .dark ::-webkit-scrollbar-thumb {
-      background: #334155; /* slate-700 */
+      background: #475569; 
+      border: 2px solid transparent;
+      background-clip: content-box;
     }
     .dark ::-webkit-scrollbar-thumb:hover {
-      background: #475569; /* slate-600 */
+      background: #64748b; 
+      border: 2px solid transparent;
+      background-clip: content-box;
     }
 
-    /* Ensure scrollbar for tab navigation on smaller screens if needed */
-    .overflow-x-auto::-webkit-scrollbar {
-        height: 4px; /* Slimmer scrollbar for horizontal nav */
-    }
-    .overflow-x-auto::-webkit-scrollbar-thumb {
-        background: #94a3b8; /* slate-400 */
-    }
-    .dark .overflow-x-auto::-webkit-scrollbar-thumb {
-        background: #475569; /* slate-600 */
-    }
-    .overflow-x-auto {
-      scrollbar-width: thin; /* Firefox */
-      scrollbar-color: #94a3b8 #f1f5f9; /* Firefox - thumb track */
-    }
-    .dark .overflow-x-auto {
-      scrollbar-color: #475569 #1e293b; /* Firefox - thumb track dark */
-    }
-
-    /* Tab content fade-in animation */
+    /* Animations */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .animate-fadeIn {
-      animation: fadeIn 0.3s ease-out forwards;
+      animation: fadeIn 0.4s ease-out forwards;
     }
 
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) skewX(-12deg); }
+      100% { transform: translateX(200%) skewX(-12deg); }
+    }
+    .animate-shimmer {
+      animation: shimmer 2s infinite linear;
+    }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
 <script type="importmap">
 {
   "imports": {
@@ -91,7 +98,7 @@
 }
 </script>
 </head>
-<body class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 ease-in-out">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

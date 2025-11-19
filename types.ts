@@ -1,3 +1,4 @@
+import React from 'react';
 
 export type Theme = 'light' | 'dark';
 export type WeekStartDay = 0 | 1; // 0 for Sunday, 1 for Monday
@@ -91,7 +92,7 @@ export interface RadialSliceProps {
   mainValueColor?: string; // Specific color for the percentage text; expects a hex color string
 }
 
-export type TimeUnitId = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' | 'decade';
+export type TimeUnitId = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year' | 'decade';
 
 export interface ProgressItemConfig {
   id: TimeUnitId;

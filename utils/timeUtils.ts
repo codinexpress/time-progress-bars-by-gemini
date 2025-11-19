@@ -23,6 +23,7 @@ export const formatDuration = (ms: number, detailLevel: 'full' | 'hm' | 's' | 'm
   const finalMilliseconds = Math.floor(secondsRemainder % MS_PER_SECOND);
 
   if (detailLevel === 's') {
+    // Total seconds logic, but format nicely
     const totalSeconds = Math.floor(ms / MS_PER_SECOND);
     return `${totalSeconds}s`;
   }
@@ -30,32 +31,29 @@ export const formatDuration = (ms: number, detailLevel: 'full' | 'hm' | 's' | 'm
   let parts: string[] = [];
 
   if (days > 0) parts.push(`${days}d`);
-  
   if (hours > 0) parts.push(`${hours}h`);
   
-  // Add minutes if they exist and detail level requires them
-  if (minutes > 0 && (detailLevel === 'full' || detailLevel === 'hm')) {
-    parts.push(`${minutes}m`);
+  if (detailLevel === 'full' || detailLevel === 'hm') {
+    if (minutes > 0) parts.push(`${minutes}m`);
   }
 
   if (detailLevel === 'full') {
-    if (seconds > 0) {
-      parts.push(`${seconds}s`);
+    // Always show seconds if we are in full mode, unless it's purely days/hours and we want clean look.
+    // But for progress bars, seeing the seconds tick is good.
+    if (seconds > 0 || (parts.length > 0 && finalMilliseconds > 0)) { 
+       parts.push(`${seconds}s`);
     }
-    // If no larger units were added (d,h,m,s) and duration is < 1s, show ms.
-    if (parts.length === 0 && ms > 0 && ms < MS_PER_SECOND) {
+    
+    // Show ms only if it's very short duration or no other parts
+    if (parts.length === 0 && ms > 0) {
       parts.push(`${finalMilliseconds}ms`);
+    } else if (parts.length === 0) {
+      return '0s';
     }
   }
   
   if (parts.length === 0) {
-    // Handle cases where no parts were added (e.g., 0ms duration, or small duration for 'hm')
-    if (detailLevel === 'hm') {
-        // For 'hm', if duration is less than 1 minute (but could be >0ms), show 0m.
-        // If it has days or hours, it would already be in parts.
-        return '0m';
-    }
-    // For 'full' or other cases (e.g. 0ms duration), default to 0s.
+    if (detailLevel === 'hm') return '0m';
     return '0s'; 
   }
 
@@ -66,10 +64,6 @@ export const formatDuration = (ms: number, detailLevel: 'full' | 'hm' | 's' | 'm
 const formatDate = (date: Date, options?: Intl.DateTimeFormatOptions): string => {
   return date.toLocaleDateString('en-US', options || { month: 'short', day: 'numeric' });
 };
-
-// const formatTime = (date: Date, options?: Intl.DateTimeFormatOptions): string => {
-//   return date.toLocaleTimeString('en-US', options || { hour: '2-digit', minute: '2-digit' });
-// };
 
 export const getSecondDetails = (now: Date): TimeDetails => {
   const totalMsInASecond = MS_PER_SECOND;
@@ -109,8 +103,8 @@ export const getHourDetails = (now: Date): TimeDetails => {
   
   return {
     percentage,
-    elapsed: formatDuration(elapsedMsInCurrentHour), // Defaults to 'full'
-    remaining: formatDuration(remainingMsInCurrentHour), // Defaults to 'full'
+    elapsed: formatDuration(elapsedMsInCurrentHour), 
+    remaining: formatDuration(remainingMsInCurrentHour),
     period: `Hour ${now.getHours()}`,
     raw: { totalMs: totalMsInAnHour, elapsedMs: elapsedMsInCurrentHour, remainingMs: remainingMsInCurrentHour }
   };
@@ -146,6 +140,7 @@ export const getWeekDetails = (now: Date, weekStartDay: WeekStartDay = 0): TimeD
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - daysToSubtract);
   startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setMilliseconds(0);
 
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
@@ -182,6 +177,29 @@ export const getMonthDetails = (now: Date): TimeDetails => {
     elapsed: formatDuration(elapsedMs),
     remaining: formatDuration(remainingMs),
     period: `${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (${Math.round(daysInMonth)} days)`,
+    raw: { totalMs, elapsedMs, remainingMs }
+  };
+};
+
+export const getQuarterDetails = (now: Date): TimeDetails => {
+  const currentMonth = now.getMonth(); // 0-11
+  const currentQuarter = Math.floor(currentMonth / 3) + 1; // 1-4
+  const startMonthOfQuarter = (currentQuarter - 1) * 3;
+
+  const startOfQuarter = new Date(now.getFullYear(), startMonthOfQuarter, 1);
+  const endOfQuarter = new Date(now.getFullYear(), startMonthOfQuarter + 3, 1);
+
+  const totalMs = endOfQuarter.getTime() - startOfQuarter.getTime();
+  const elapsedMs = now.getTime() - startOfQuarter.getTime();
+  const remainingMs = totalMs - elapsedMs;
+
+  const percentage = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+
+  return {
+    percentage,
+    elapsed: formatDuration(elapsedMs, 'hm'),
+    remaining: formatDuration(remainingMs, 'hm'),
+    period: `Q${currentQuarter} ${now.getFullYear()}`,
     raw: { totalMs, elapsedMs, remainingMs }
   };
 };
