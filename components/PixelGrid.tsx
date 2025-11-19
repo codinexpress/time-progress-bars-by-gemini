@@ -12,6 +12,8 @@ const PixelGrid: React.FC<PixelGridProps> = ({
   mainValueColor, 
   gridRows = 8,
   gridCols = 10,
+  isMaximized = false,
+  sizeClassName,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const totalPixels = gridRows * gridCols;
@@ -50,30 +52,37 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     return pixelRects;
   }, [totalPixels, filledPixels, gridCols, pixelSize, gap, pixelColor, emptyPixelColor]);
 
+  const labelTextSize = isMaximized ? 'text-xl sm:text-2xl' : 'text-sm sm:text-md';
+  const iconSize = isMaximized ? 'w-8 h-8' : 'w-5 h-5 sm:w-6 sm:h-6';
+  const percentTextSize = isMaximized ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl';
+  const detailTextSize = isMaximized ? 'text-lg' : 'text-xs';
+  
+  const containerMaxWidth = isMaximized ? '600px' : '240px';
+
   return (
-    <div className={`p-4 flex flex-col items-center ${textColor}`}>
+    <div className={`p-4 flex flex-col items-center ${textColor} w-full`}>
       <div className="flex items-center space-x-2 mb-3">
-        {icon && <span className="w-5 h-5 sm:w-6 sm:h-6">{icon}</span>}
-        <span className="text-sm sm:text-md font-bold uppercase tracking-wide">{label}</span>
+        {icon && <span className={iconSize}>{icon}</span>}
+        <span className={`${labelTextSize} font-bold uppercase tracking-wide`}>{label}</span>
       </div>
 
-      <div className="relative mb-3" style={{ maxWidth: '240px', width: '100%' }}>
+      <div className="relative mb-3" style={{ maxWidth: containerMaxWidth, width: '100%' }}>
          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto drop-shadow-sm">
            {pixels}
          </svg>
       </div>
 
        <div 
-        className="text-xl sm:text-2xl font-bold font-mono"
+        className={`${percentTextSize} font-bold font-mono`}
         style={{ color: percentageColor }}
       >
           {clampedPercentage.toFixed(1)}%
       </div>
       
       {details && (
-        <div className={`mt-3 text-xs text-center space-y-1 w-full ${textColor} opacity-80`}>
-          <div className="flex justify-between px-2"><span>Elapsed:</span> <span className="font-mono">{details.elapsed}</span></div>
-          <div className="flex justify-between px-2"><span>Remaining:</span> <span className="font-mono">{details.remaining}</span></div>
+        <div className={`mt-3 ${detailTextSize} text-center space-y-1 w-full ${textColor} opacity-80`}>
+          <div className="flex justify-between px-2 gap-4"><span>Elapsed:</span> <span className="font-mono">{details.elapsed}</span></div>
+          <div className="flex justify-between px-2 gap-4"><span>Remaining:</span> <span className="font-mono">{details.remaining}</span></div>
         </div>
       )}
     </div>

@@ -10,6 +10,8 @@ const Hourglass: React.FC<HourglassProps> = ({
   frameColor = '#94a3b8',
   textColor = 'text-slate-700 dark:text-slate-300', 
   mainValueColor, 
+  isMaximized = false,
+  sizeClassName,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const viewBoxWidth = 100;
@@ -32,17 +34,28 @@ const Hourglass: React.FC<HourglassProps> = ({
   
   const percentageColor = mainValueColor || sandColor;
   
-  const maskIdTop = `hourglassMaskTop-${label.replace(/\s+/g, '-')}`;
-  const maskIdBottom = `hourglassMaskBottom-${label.replace(/\s+/g, '-')}`;
+  const maskIdTop = `hourglassMaskTop-${label.replace(/\s+/g, '-')}-${isMaximized ? 'max' : 'min'}`;
+  const maskIdBottom = `hourglassMaskBottom-${label.replace(/\s+/g, '-')}-${isMaximized ? 'max' : 'min'}`;
+
+  // Determine sizes
+  const labelTextSize = isMaximized ? 'text-xl sm:text-2xl' : 'text-sm sm:text-md';
+  const iconSize = isMaximized ? 'w-8 h-8' : 'w-5 h-5 sm:w-6 sm:h-6';
+  const percentTextSize = isMaximized ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl';
+  const detailTextSize = isMaximized ? 'text-lg' : 'text-xs';
+
+  // Scale the container size
+  const containerStyle = isMaximized 
+    ? { width: 'min(60vh, 60vw)', height: 'min(90vh, 90vw)', maxHeight: '600px', maxWidth: '400px' }
+    : { width: '60px', height: '90px' }; // Base aspect ratio roughly 1:1.5
 
   return (
-    <div className={`p-4 flex flex-col items-center ${textColor}`}>
+    <div className={`p-4 flex flex-col items-center ${textColor} w-full`}>
       <div className="flex items-center space-x-2 mb-3">
-        {icon && <span className="w-5 h-5 sm:w-6 sm:h-6">{icon}</span>}
-        <span className="text-sm sm:text-md font-bold uppercase tracking-wide">{label}</span>
+        {icon && <span className={iconSize}>{icon}</span>}
+        <span className={`${labelTextSize} font-bold uppercase tracking-wide`}>{label}</span>
       </div>
 
-      <div className="relative" style={{ width: `${viewBoxWidth * 0.6}px`, height: `${viewBoxHeight * 0.6}px` }}>
+      <div className="relative" style={containerStyle}>
         <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} className="w-full h-full drop-shadow-sm">
           <defs>
             <mask id={maskIdTop}>
@@ -77,7 +90,7 @@ const Hourglass: React.FC<HourglassProps> = ({
           />
         </svg>
         <div 
-          className="absolute inset-0 flex items-center justify-center text-xl sm:text-2xl font-bold font-mono"
+          className={`absolute inset-0 flex items-center justify-center ${percentTextSize} font-bold font-mono`}
           style={{ color: percentageColor, textShadow: '0 1px 2px rgba(255,255,255,0.5)' }}
         >
           {clampedPercentage.toFixed(1)}%
@@ -85,7 +98,7 @@ const Hourglass: React.FC<HourglassProps> = ({
       </div>
       
       {details && (
-        <div className={`mt-3 text-xs text-center space-y-1 w-full ${textColor} opacity-80`}>
+        <div className={`mt-3 ${detailTextSize} text-center space-y-1 w-full ${textColor} opacity-80`}>
           <p><span className="font-semibold opacity-70">Remaining:</span> <span className="font-mono">{details.remaining}</span></p>
         </div>
       )}

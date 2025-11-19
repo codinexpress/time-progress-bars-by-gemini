@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CurrentTimeDisplay from './components/CurrentTimeDisplay';
 import ColorCustomizer from './components/ColorCustomizer';
 import CommentSection from './components/CommentSection';
@@ -38,6 +38,7 @@ const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('visualizations');
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [maximizedConfigId, setMaximizedConfigId] = useState<string | null>(null);
 
   const gridLayoutClasses = {
     bars: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
@@ -52,6 +53,17 @@ const App: React.FC = () => {
     resetAllSettings();
     setActiveTab('visualizations');
   };
+  
+  // Close maximized view on Esc
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMaximizedConfigId(null);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
+  const maximizedConfig = DEFAULT_PROGRESS_CONFIGS.find(c => c.id === maximizedConfigId);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 flex flex-col items-center justify-start p-2 sm:p-4 lg:p-6 selection:bg-sky-500 selection:text-white text-slate-800 dark:text-slate-200 transition-colors duration-300">
@@ -79,7 +91,7 @@ const App: React.FC = () => {
           <div className="mb-4 flex justify-end">
              <button 
               onClick={() => setIsFocusMode(false)}
-              className="text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-4 py-2 rounded-full transition-colors shadow-lg z-50 opacity-50 hover:opacity-100"
+              className="text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-4 py-2 rounded-full transition-colors shadow-lg z-10 opacity-50 hover:opacity-100"
             >
               EXIT FOCUS
             </button>
@@ -103,6 +115,7 @@ const App: React.FC = () => {
                   config={config}
                   currentTime={currentTime}
                   settings={settings}
+                  onMaximize={setMaximizedConfigId}
                 />
               ))}
             </div>
@@ -156,11 +169,26 @@ const App: React.FC = () => {
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Crafted with React, TypeScript & Tailwind CSS.
               <br />
-              <span className="opacity-70 mt-1 inline-block">Version 2.2.0 - Modular Flux</span>
+              <span className="opacity-70 mt-1 inline-block">Version 2.3.0 - Expansion</span>
             </p>
           </footer>
         )}
       </main>
+
+      {/* Maximized View Modal Overlay */}
+      {maximizedConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setMaximizedConfigId(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl flex justify-center">
+             <VisualizationCard
+                config={maximizedConfig}
+                currentTime={currentTime}
+                settings={settings}
+                isMaximized={true}
+                onClose={() => setMaximizedConfigId(null)}
+             />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
