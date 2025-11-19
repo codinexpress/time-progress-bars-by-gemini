@@ -1,3 +1,4 @@
+
 import { useEffect, useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { AppSettings, Theme, TimeUnitId } from '../types';
@@ -14,7 +15,7 @@ const defaultAppSettings: AppSettings = {
 
 export const useAppSettings = () => {
   // Initialize with logic to detect system preference if no storage exists
-  const [settings, setSettings] = useLocalStorage<AppSettings>('temporalFluxSettings', (() => {
+  const [storedSettings, setSettings] = useLocalStorage<AppSettings>('temporalFluxSettings', (() => {
     if (typeof window !== 'undefined') {
       const storedThemeKey = localStorage.getItem('theme') as Theme | null;
       const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -30,6 +31,14 @@ export const useAppSettings = () => {
     }
     return defaultAppSettings;
   })());
+
+  // Merge stored settings with defaults to ensure all properties exist (handles migration from older versions)
+  const settings: AppSettings = {
+    ...defaultAppSettings,
+    ...storedSettings,
+    customColors: storedSettings?.customColors || defaultAppSettings.customColors,
+    decimalPlaceOverrides: storedSettings?.decimalPlaceOverrides || defaultAppSettings.decimalPlaceOverrides,
+  };
 
   // Effect to apply theme to document
   useEffect(() => {
@@ -49,7 +58,7 @@ export const useAppSettings = () => {
     setSettings(prev => ({
       ...prev,
       customColors: {
-        ...prev.customColors,
+        ...(prev.customColors || {}),
         [unitId]: colorHex,
       }
     }));
@@ -57,7 +66,7 @@ export const useAppSettings = () => {
 
   const updateDecimalOverride = useCallback((unitId: TimeUnitId, value: number | null) => {
     setSettings(prev => {
-      const newOverrides = { ...prev.decimalPlaceOverrides };
+      const newOverrides = { ...(prev.decimalPlaceOverrides || {}) };
       if (value === null) {
         delete newOverrides[unitId];
       } else {
