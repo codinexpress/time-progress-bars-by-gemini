@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { PixelGridProps } from '../types';
 
@@ -15,6 +16,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
   isMaximized = false,
   sizeClassName,
   decimalPlaces,
+  legend,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const totalPixels = gridRows * gridCols;
@@ -57,6 +59,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
   const iconSize = isMaximized ? 'w-8 h-8' : 'w-5 h-5 sm:w-6 sm:h-6';
   const percentTextSize = isMaximized ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl';
   const detailTextSize = isMaximized ? 'text-lg' : 'text-xs';
+  const legendSize = isMaximized ? 'text-sm sm:text-base' : 'text-[10px] sm:text-xs';
   
   const containerMaxWidth = isMaximized ? '600px' : '240px';
 
@@ -67,10 +70,15 @@ const PixelGrid: React.FC<PixelGridProps> = ({
         <span className={`${labelTextSize} font-bold uppercase tracking-wide`}>{label}</span>
       </div>
 
-      <div className="relative mb-3" style={{ maxWidth: containerMaxWidth, width: '100%' }}>
+      <div className="relative mb-3 flex flex-col items-center" style={{ maxWidth: containerMaxWidth, width: '100%' }}>
          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto drop-shadow-sm">
            {pixels}
          </svg>
+         {legend && (
+           <div className={`mt-2 ${legendSize} ${textColor} opacity-60 font-mono text-center bg-slate-100/50 dark:bg-slate-800/50 px-2 py-0.5 rounded-full`}>
+             {legend}
+           </div>
+         )}
       </div>
 
        <div 

@@ -53,6 +53,7 @@ export interface PixelGridProps extends BaseVisualizationProps {
   emptyPixelColor?: string; 
   gridRows?: number;
   gridCols?: number;
+  legend?: string;
 }
 
 export interface TimeSpiralProps extends BaseVisualizationProps {
@@ -86,6 +87,7 @@ export interface ProgressItemConfig {
   icon: (props: IconProps) => React.ReactNode; 
   baseColor: string; 
   gridConfig?: { rows: number; cols: number };
+  pixelGridLegend?: string;
 }
 
 export interface CurrentTimeDisplayProps {
@@ -137,7 +139,7 @@ export interface CommentData {
 }
 
 // New types for Feedback System
-export type ActiveTab = 'visualizations' | 'settings' | 'colors' | 'comments' | 'feedback';
+export type ActiveTab = 'visualizations' | 'settings' | 'colors' | 'comments' | 'feedback' | 'about';
 
 export interface RatingCounts {
   1: number;

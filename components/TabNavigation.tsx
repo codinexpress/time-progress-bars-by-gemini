@@ -13,6 +13,7 @@ const tabs: { id: ActiveTab, label: string }[] = [
   { id: 'colors', label: 'Colors' },
   { id: 'comments', label: 'Comments' },
   { id: 'feedback', label: 'Feedback' },
+  { id: 'about', label: 'About' },
 ];
 
 const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => {

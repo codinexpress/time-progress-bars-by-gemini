@@ -7,6 +7,7 @@ import FeedbackSection from './components/FeedbackSection';
 import SettingsDisplay from './components/SettingsDisplay';
 import VisualizationCard from './components/VisualizationCard';
 import TabNavigation from './components/TabNavigation';
+import AboutSection from './components/AboutSection'; // Import AboutSection
 import { DEFAULT_PROGRESS_CONFIGS } from './config/progressConfig';
 import { EyeIcon } from './components/Icons';
 import { ActiveTab, SectionId } from './types';
@@ -189,6 +190,10 @@ const App: React.FC = () => {
               appTheme={settings.theme}
             />
           )}
+
+          {!isFocusMode && activeTab === 'about' && (
+            <AboutSection />
+          )}
         </div>
         
         {/* Footer */}
@@ -203,7 +208,7 @@ const App: React.FC = () => {
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Crafted with React, TypeScript & Tailwind CSS.
               <br />
-              <span className="opacity-70 mt-1 inline-block">Version 2.4.0 - Metrics Expanded</span>
+              <span className="opacity-70 mt-1 inline-block">Version 2.5.0 - Smart Pixels</span>
             </p>
           </footer>
         )}

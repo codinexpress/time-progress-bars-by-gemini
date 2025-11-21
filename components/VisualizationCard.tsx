@@ -23,7 +23,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
   currentTime, 
   settings, 
   onMaximize, 
-  onClose,
+  onClose, 
   isMaximized = false 
 }) => {
   const { visualizationMode, customColors, weekStartDay, theme, globalDecimalPlaces, decimalPlaceOverrides, birthDate } = settings;
@@ -102,6 +102,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
             gridRows={config.gridConfig?.rows ?? 10}
             gridCols={config.gridConfig?.cols ?? 10}
             sizeClassName={isMaximized ? maximizedSizeClass : undefined}
+            legend={config.pixelGridLegend}
           />
         );
       case 'spiral':

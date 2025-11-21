@@ -22,7 +22,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getSecondDetails, 
     icon: (props) => SecondIcon(props), 
     baseColor: '#14b8a6',
-    gridConfig: { rows: 10, cols: 10 } // 100cs (Percentage view)
+    gridConfig: { rows: 10, cols: 10 }, // 100cs (Percentage view)
+    pixelGridLegend: '1 pixel = 10 milliseconds'
   },
   { 
     id: 'minute', 
@@ -31,7 +32,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getMinuteDetails, 
     icon: (props) => MinuteIcon(props), 
     baseColor: '#06b6d4',
-    gridConfig: { rows: 6, cols: 10 } // 60 Seconds
+    gridConfig: { rows: 6, cols: 10 }, // 60 Seconds
+    pixelGridLegend: '1 pixel = 1 second'
   },
   { 
     id: 'hour', 
@@ -40,7 +42,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getHourDetails, 
     icon: (props) => HourIcon(props), 
     baseColor: '#3b82f6',
-    gridConfig: { rows: 6, cols: 10 } // 60 Minutes
+    gridConfig: { rows: 6, cols: 10 }, // 60 Minutes
+    pixelGridLegend: '1 pixel = 1 minute'
   },
   { 
     id: 'heartbeat', 
@@ -49,7 +52,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getHeartbeatDetails, 
     icon: (props) => HeartPulseIcon(props), 
     baseColor: '#ef4444',
-    gridConfig: { rows: 10, cols: 10 } // 100%
+    gridConfig: { rows: 10, cols: 10 }, // 100%
+    pixelGridLegend: '1 pixel = 1% of cycle'
   },
 
   // Cyclical Time: Day, Daylight, Week, Moon Phase
@@ -60,7 +64,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getDayDetails, 
     icon: (props) => DayIcon(props), 
     baseColor: '#0ea5e9',
-    gridConfig: { rows: 4, cols: 6 } // 24 Hours
+    gridConfig: { rows: 4, cols: 6 }, // 24 Hours
+    pixelGridLegend: '1 pixel = 1 hour'
   },
   { 
     id: 'daylight', 
@@ -69,7 +74,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getDaylightDetails, 
     icon: (props) => SunIcon(props), 
     baseColor: '#f59e0b',
-    gridConfig: { rows: 10, cols: 10 } // 100%
+    gridConfig: { rows: 10, cols: 10 }, // 100%
+    pixelGridLegend: '1 pixel = 1% of daylight'
   },
   { 
     id: 'week', 
@@ -78,7 +84,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getWeekDetails, 
     icon: (props) => WeekIcon(props), 
     baseColor: '#10b981',
-    gridConfig: { rows: 1, cols: 7 } // 7 Days
+    gridConfig: { rows: 1, cols: 7 }, // 7 Days
+    pixelGridLegend: '1 pixel = 1 day'
   },
   { 
     id: 'moon', 
@@ -87,7 +94,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getMoonPhaseDetails, 
     icon: (props) => MoonIcon(props), 
     baseColor: '#94a3b8',
-    gridConfig: { rows: 5, cols: 6 } // 30 Days (Approx cycle)
+    gridConfig: { rows: 5, cols: 6 }, // 30 Days (Approx cycle)
+    pixelGridLegend: '1 pixel ≈ 1 day'
   },
 
   // Macro Time: Month, Quarter, Year, Season
@@ -98,7 +106,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getMonthDetails, 
     icon: (props) => MonthIcon(props), 
     baseColor: '#8b5cf6',
-    gridConfig: { rows: 5, cols: 7 } // 35 Slots (Covers max 31 days)
+    gridConfig: { rows: 5, cols: 7 }, // 35 Slots (Covers max 31 days)
+    pixelGridLegend: '1 pixel = 1 day'
   },
   { 
     id: 'quarter', 
@@ -107,7 +116,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getQuarterDetails, 
     icon: (props) => QuarterIcon(props), 
     baseColor: '#f97316',
-    gridConfig: { rows: 7, cols: 13 } // 91 Days (Approx 3 months)
+    gridConfig: { rows: 7, cols: 13 }, // 91 Days (Approx 3 months)
+    pixelGridLegend: '1 pixel ≈ 1 day'
   },
   { 
     id: 'year', 
@@ -116,7 +126,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getYearDetails, 
     icon: (props) => YearIcon(props), 
     baseColor: '#f43f5e',
-    gridConfig: { rows: 14, cols: 26 } // 364 Days (52 weeks * 7) - close approximation to 365
+    gridConfig: { rows: 14, cols: 26 }, // 364 Days (52 weeks * 7) - close approximation to 365
+    pixelGridLegend: '1 pixel ≈ 1 day'
   },
   { 
     id: 'season', 
@@ -125,7 +136,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getSeasonDetails, 
     icon: (props) => SeasonIcon(props), 
     baseColor: '#84cc16',
-    gridConfig: { rows: 7, cols: 13 } // 91 Days (Approx 3 months)
+    gridConfig: { rows: 7, cols: 13 }, // 91 Days (Approx 3 months)
+    pixelGridLegend: '1 pixel ≈ 1 day'
   },
 
   // Mega Time: Decade, Century, Life Progress
@@ -136,7 +148,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getDecadeDetails, 
     icon: (props) => DecadeIcon(props), 
     baseColor: '#6366f1',
-    gridConfig: { rows: 2, cols: 5 } // 10 Years
+    gridConfig: { rows: 2, cols: 5 }, // 10 Years
+    pixelGridLegend: '1 pixel = 1 year'
   },
   { 
     id: 'century', 
@@ -145,7 +158,8 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getCenturyDetails, 
     icon: (props) => CenturyIcon(props), 
     baseColor: '#64748b',
-    gridConfig: { rows: 10, cols: 10 } // 100 Years
+    gridConfig: { rows: 10, cols: 10 }, // 100 Years
+    pixelGridLegend: '1 pixel = 1 year'
   },
   { 
     id: 'life', 
@@ -154,6 +168,7 @@ export const DEFAULT_PROGRESS_CONFIGS: ReadonlyArray<ProgressItemConfig> = [
     getDetails: getLifeDetails, 
     icon: (props) => LifeIcon(props), 
     baseColor: '#db2777',
-    gridConfig: { rows: 10, cols: 10 } // 100 Years (Standard cap)
+    gridConfig: { rows: 10, cols: 10 }, // 100 Years (Standard cap)
+    pixelGridLegend: '1 pixel = 1 year'
   },
 ];
