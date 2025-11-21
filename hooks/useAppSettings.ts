@@ -7,7 +7,7 @@ const defaultAppSettings: AppSettings = {
   theme: 'light',
   weekStartDay: 0,
   visualizationMode: 'bars',
-  updateIntervalMs: 200,
+  updateIntervalMs: 100,
   customColors: {},
   globalDecimalPlaces: 2,
   decimalPlaceOverrides: {},

@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { TimeOrbitProps } from '../types';
 
 const TimeOrbit: React.FC<TimeOrbitProps> = ({
@@ -15,15 +16,46 @@ const TimeOrbit: React.FC<TimeOrbitProps> = ({
   decimalPlaces,
 }) => {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
-  const angle = (clampedPercentage / 100) * 360 - 90; 
+  
+  // State to track cumulative rotations to prevent "rewind" on wrap-around
+  const [rotationState, setRotationState] = useState({
+    prevPercentage: clampedPercentage,
+    rotations: 0
+  });
+
+  // Derived state pattern: Update state during render if props change
+  // This ensures the render uses the correct cumulative angle immediately without a 1-frame lag
+  if (Math.abs(clampedPercentage - rotationState.prevPercentage) > 0.001) {
+    let newRotations = rotationState.rotations;
+    const prev = rotationState.prevPercentage;
+    const current = clampedPercentage;
+
+    // Threshold of 50% change indicates a wrap-around
+    if (prev > 80 && current < 20) {
+      newRotations += 1;
+    } else if (prev < 20 && current > 80) {
+      newRotations -= 1;
+    }
+
+    setRotationState({
+      prevPercentage: current,
+      rotations: newRotations
+    });
+  }
+
+  // Use rotations from state (current render or updated state)
+  const currentRotations = rotationState.rotations;
+
+  // Calculate total angle: 0% = 0 degrees, 100% = 360 degrees.
+  // We add full rotations (360 * rotations) to keep the value monotonic.
+  const angle = (currentRotations * 360) + (clampedPercentage / 100) * 360; 
+  
   const radius = 40; 
   const planetRadius = 6;
   const strokeWidth = 6;
   const viewBoxSize = 100; 
+  const center = viewBoxSize / 2;
 
-  const x = viewBoxSize / 2 + radius * Math.cos(angle * Math.PI / 180);
-  const y = viewBoxSize / 2 + radius * Math.sin(angle * Math.PI / 180);
-  
   const percentageColor = mainValueColor || planetColor;
 
   const defaultSizeClass = "w-36 h-36 sm:w-40 sm:h-40";
@@ -42,26 +74,44 @@ const TimeOrbit: React.FC<TimeOrbitProps> = ({
       </div>
 
       <div className={`relative ${containerSizeClass}`}>
+        {/* 
+          Rotate -90deg so 0deg starts at 12 o'clock.
+          The planet starts at (radius, 0) relative to center, which is 3 o'clock in SVG space.
+          -90 rotation brings 3 o'clock to 12 o'clock.
+        */}
         <svg viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`} className="w-full h-full transform -rotate-90 drop-shadow-md">
           <circle
-            cx={viewBoxSize / 2}
-            cy={viewBoxSize / 2}
+            cx={center}
+            cy={center}
             r={radius}
             stroke={orbitColor}
             strokeWidth={strokeWidth}
             fill="none"
             className="opacity-50"
           />
-           <circle
-            cx={x}
-            cy={y}
-            r={planetRadius}
-            fill={planetColor}
-            className="transition-all duration-150 ease-out"
-            stroke="white"
-            strokeWidth="2"
-            strokeOpacity="0.5"
-          />
+          
+          {/* Group centered in viewbox */}
+          <g transform={`translate(${center}, ${center})`}>
+            {/* 
+              Rotating group - rotates around (0,0) which is now the center of SVG.
+              We animate the rotation angle to follow the orbit path.
+            */}
+            <g 
+              style={{ transform: `rotate(${angle}deg)` }}
+              className="transition-transform duration-500 ease-out"
+            >
+               {/* Planet offset by radius (starts at 3 o'clock relative to rotation group) */}
+               <circle
+                cx={radius}
+                cy={0}
+                r={planetRadius}
+                fill={planetColor}
+                stroke="white"
+                strokeWidth="2"
+                strokeOpacity="0.5"
+              />
+            </g>
+          </g>
         </svg>
         <div 
           className={`absolute inset-0 flex items-center justify-center ${percentTextSize} font-bold font-mono`}

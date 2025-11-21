@@ -25,10 +25,8 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
     { value: 1, label: "Ultra Fast (1ms)" },
     { value: 10, label: "Super Fast (10ms)" },
     { value: 50, label: "Very Fast (50ms)" },
-    { value: 200, label: "Fast (200ms)" },
-    { value: 500, label: "Medium (500ms)" },
-    { value: 1000, label: "Standard (1s)" },
-    { value: 2000, label: "Slow (2s)" },
+    { value: 100, label: "Fast (100ms)" },
+    { value: 200, label: "Minimum (200ms)" },
   ];
 
   return (
@@ -83,7 +81,8 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
       </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <label htmlFor="updateIntervalSelect" className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 sm:mb-0 sm:mr-3 shrink-0">Update Speed:</label>
-        <div className="flex items-center space-x-2 w-full sm:w-auto">
+        
+        <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 overflow-hidden focus-within:ring-2 focus-within:ring-sky-500 focus-within:border-sky-500 transition-all w-full sm:w-auto shadow-sm">
           <select
             id="updateIntervalSelect"
             value={settings.updateIntervalMs}
@@ -93,18 +92,18 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
                 onSettingChange('updateIntervalMs', value);
               }
             }}
-            className="flex-grow sm:flex-grow-0 px-2 py-1.5 text-xs sm:text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors duration-150 ease-out"
+            className="flex-grow sm:flex-grow-0 px-3 py-2 text-xs sm:text-sm bg-transparent border-r border-slate-200 dark:border-slate-600 outline-none text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600/50 transition-colors"
             aria-label="Select predefined update speed"
           >
             {intervalOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>
+              <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-700">
                 {opt.label}
               </option>
             ))}
              {/* Add a custom option if current value is not in predefined list */}
             {!intervalOptions.some(opt => opt.value === settings.updateIntervalMs) && (
-                <option value={settings.updateIntervalMs}>
-                    Custom ({settings.updateIntervalMs}ms)
+                <option value={settings.updateIntervalMs} className="bg-white dark:bg-slate-700">
+                    Custom
                 </option>
             )}
           </select>
@@ -117,14 +116,14 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
               const value = parseInt(e.target.value, 10);
               if (!isNaN(value) && value >= 1) {
                 onSettingChange('updateIntervalMs', value);
-              } else if (e.target.value === "") { // Allow clearing field before typing new val
-                 // Or handle empty string state if needed, for now, no change on empty
+              } else if (e.target.value === "") { 
+                 // Allow clearing field before typing new val
               }
             }}
-            className="w-20 px-2 py-1.5 text-xs sm:text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors duration-150 ease-out [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-20 px-3 py-2 text-xs sm:text-sm bg-transparent outline-none text-slate-700 dark:text-slate-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             aria-label="Custom update speed in milliseconds"
           />
-          <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">ms</span>
+          <span className="pr-3 text-xs sm:text-sm text-slate-500 dark:text-slate-400 bg-transparent select-none">ms</span>
         </div>
       </div>
 
