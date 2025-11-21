@@ -54,7 +54,7 @@ const App: React.FC = () => {
             >
               Focus
             </button>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-500 via-blue-500 to-teal-500 dark:from-sky-400 dark:via-cyan-400 dark:to-teal-400 pb-2 tracking-tight font-mono uppercase">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-500 via-blue-500 to-teal-500 dark:from-sky-400 dark:via-cyan-400 dark:to-teal-400 pb-2 tracking-tight font-orbitron uppercase">
               Time Flux
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1 font-medium tracking-wide">VISUALIZE THE FLOW OF EXISTENCE</p>
