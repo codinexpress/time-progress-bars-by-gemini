@@ -11,6 +11,7 @@ const defaultAppSettings: AppSettings = {
   customColors: {},
   globalDecimalPlaces: 2,
   decimalPlaceOverrides: {},
+  birthDate: '1990-01-01',
 };
 
 export const useAppSettings = () => {
@@ -38,6 +39,7 @@ export const useAppSettings = () => {
     ...storedSettings,
     customColors: storedSettings?.customColors || defaultAppSettings.customColors,
     decimalPlaceOverrides: storedSettings?.decimalPlaceOverrides || defaultAppSettings.decimalPlaceOverrides,
+    birthDate: storedSettings?.birthDate || defaultAppSettings.birthDate,
   };
 
   // Effect to apply theme to document

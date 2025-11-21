@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { SettingsProps, VisualizationMode, WeekStartDay, TimeUnitId } from '../types';
 import {
@@ -125,6 +126,21 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
           />
           <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">ms</span>
         </div>
+      </div>
+
+      {/* Birth Date for Life Progress */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-slate-200 dark:border-slate-700/50">
+        <div className="mb-1 sm:mb-0">
+            <label htmlFor="birthDateInput" className="text-sm font-medium text-slate-700 dark:text-slate-300 block">Birth Date:</label>
+            <span className="text-xs text-slate-500 dark:text-slate-400">For 'Life Progress' metric</span>
+        </div>
+        <input
+            type="date"
+            id="birthDateInput"
+            value={settings.birthDate}
+            onChange={(e) => onSettingChange('birthDate', e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+        />
       </div>
 
       {/* Decimal Precision Section */}

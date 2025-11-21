@@ -70,12 +70,19 @@ export interface RadialSliceProps extends BaseVisualizationProps {
   trackColor?: string; 
 }
 
-export type TimeUnitId = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year' | 'decade';
+export type TimeUnitId = 
+  | 'second' | 'minute' | 'hour' | 'heartbeat'
+  | 'day' | 'daylight' | 'week' | 'moon'
+  | 'month' | 'quarter' | 'year' | 'season'
+  | 'decade' | 'century' | 'life';
+
+export type SectionId = 'micro' | 'cyclical' | 'macro' | 'mega';
 
 export interface ProgressItemConfig {
   id: TimeUnitId;
   label: string;
-  getDetails: (date: Date, weekStartDay: WeekStartDay) => TimeDetails;
+  section: SectionId; // Grouping logic
+  getDetails: (date: Date, weekStartDay: WeekStartDay, birthDate?: string) => TimeDetails;
   icon: (props: IconProps) => React.ReactNode; 
   baseColor: string; 
   gridConfig?: { rows: number; cols: number };
@@ -101,6 +108,7 @@ export interface AppSettings {
   customColors: CustomColors;
   globalDecimalPlaces: number;
   decimalPlaceOverrides: DecimalOverrides;
+  birthDate: string; // ISO Date string for Life progress
 }
 
 export interface SettingsProps {

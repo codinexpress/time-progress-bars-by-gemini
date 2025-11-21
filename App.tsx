@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CurrentTimeDisplay from './components/CurrentTimeDisplay';
 import ColorCustomizer from './components/ColorCustomizer';
 import CommentSection from './components/CommentSection';
@@ -9,7 +9,7 @@ import VisualizationCard from './components/VisualizationCard';
 import TabNavigation from './components/TabNavigation';
 import { DEFAULT_PROGRESS_CONFIGS } from './config/progressConfig';
 import { EyeIcon } from './components/Icons';
-import { ActiveTab } from './types';
+import { ActiveTab, SectionId } from './types';
 import { useTime } from './hooks/useTime';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useFeedback } from './hooks/useFeedback';
@@ -64,6 +64,29 @@ const App: React.FC = () => {
 
   const maximizedConfig = DEFAULT_PROGRESS_CONFIGS.find(c => c.id === maximizedConfigId);
 
+  // Group configs by section
+  const groupedConfigs = useMemo(() => {
+    const groups: Record<SectionId, typeof DEFAULT_PROGRESS_CONFIGS[number][]> = {
+        micro: [],
+        cyclical: [],
+        macro: [],
+        mega: []
+    };
+    DEFAULT_PROGRESS_CONFIGS.forEach(config => {
+        if (groups[config.section]) {
+            groups[config.section].push(config);
+        }
+    });
+    return groups;
+  }, []);
+
+  const sectionTitles: Record<SectionId, string> = {
+      micro: 'Micro Time',
+      cyclical: 'Cyclical Time',
+      macro: 'Macro Time',
+      mega: 'Mega Time'
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 flex flex-col items-center justify-start p-2 sm:p-4 lg:p-6 selection:bg-sky-500 selection:text-white text-slate-800 dark:text-slate-200 transition-colors duration-300">
       <main className={`w-full transition-all duration-500 ease-in-out ${isFocusMode ? 'max-w-[98vw]' : 'max-w-6xl bg-white/80 dark:bg-slate-800/[.85] backdrop-blur-xl shadow-2xl rounded-3xl border border-slate-200/50 dark:border-slate-700/50'} p-4 sm:p-6 md:p-8 relative`}>
@@ -107,16 +130,28 @@ const App: React.FC = () => {
         {/* Main Content Area */}
         <div className="py-2 min-h-[300px] animate-fadeIn">
           {(activeTab === 'visualizations' || isFocusMode) && (
-            <div className={`grid gap-4 sm:gap-6 ${gridLayoutClasses[settings.visualizationMode]}`}>
-              {DEFAULT_PROGRESS_CONFIGS.map((config) => (
-                <VisualizationCard 
-                  key={config.id}
-                  config={config}
-                  currentTime={currentTime}
-                  settings={settings}
-                  onMaximize={setMaximizedConfigId}
-                />
-              ))}
+            <div className="space-y-12">
+               {(Object.keys(groupedConfigs) as SectionId[]).map((section) => (
+                   <div key={section}>
+                       <div className="flex items-center mb-4">
+                           <h2 className="text-lg sm:text-xl font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest font-mono border-b-2 border-slate-200 dark:border-slate-700 pb-1 pr-4">
+                               {sectionTitles[section]}
+                           </h2>
+                           <div className="flex-grow h-[1px] bg-slate-200 dark:bg-slate-700/50 ml-2"></div>
+                       </div>
+                       <div className={`grid gap-4 sm:gap-6 ${gridLayoutClasses[settings.visualizationMode]}`}>
+                           {groupedConfigs[section].map((config) => (
+                               <VisualizationCard 
+                                   key={config.id}
+                                   config={config}
+                                   currentTime={currentTime}
+                                   settings={settings}
+                                   onMaximize={setMaximizedConfigId}
+                               />
+                           ))}
+                       </div>
+                   </div>
+               ))}
             </div>
           )}
           
@@ -168,7 +203,7 @@ const App: React.FC = () => {
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Crafted with React, TypeScript & Tailwind CSS.
               <br />
-              <span className="opacity-70 mt-1 inline-block">Version 2.3.0 - Expansion</span>
+              <span className="opacity-70 mt-1 inline-block">Version 2.4.0 - Metrics Expanded</span>
             </p>
           </footer>
         )}

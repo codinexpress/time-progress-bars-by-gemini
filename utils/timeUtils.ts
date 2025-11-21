@@ -80,6 +80,24 @@ export const getSecondDetails = (now: Date): TimeDetails => {
   };
 };
 
+export const getHeartbeatDetails = (now: Date): TimeDetails => {
+  // Average resting heart rate ~80 bpm -> 1.33 bps -> ~750ms per beat.
+  // Let's simulate a rhythmic cycle of 800ms.
+  const BEAT_DURATION_MS = 800; 
+  const ms = now.getTime();
+  const elapsedMs = ms % BEAT_DURATION_MS;
+  const remainingMs = BEAT_DURATION_MS - elapsedMs;
+  const percentage = (elapsedMs / BEAT_DURATION_MS) * 100;
+
+  return {
+    percentage,
+    elapsed: `${elapsedMs}ms`,
+    remaining: `${remainingMs}ms`,
+    period: 'Systole / Diastole',
+    raw: { totalMs: BEAT_DURATION_MS, elapsedMs, remainingMs }
+  };
+};
+
 export const getMinuteDetails = (now: Date): TimeDetails => {
   const totalMsInAMinute = MS_PER_MINUTE;
   const elapsedMsInCurrentMinute = now.getSeconds() * MS_PER_SECOND + now.getMilliseconds();
@@ -130,6 +148,62 @@ export const getDayDetails = (now: Date): TimeDetails => {
   };
 };
 
+export const getDaylightDetails = (now: Date): TimeDetails => {
+  // Rough approximation for N. Hemisphere: Sunrise 6am-7am, Sunset 6pm-8pm varying by season.
+  // Simplified solar cycle: ~6am to ~6pm average.
+  // Winter: 7am - 5pm. Summer: 5:30am - 8:30pm.
+  // Let's use a sine wave approximation based on day of year for sunrise/sunset.
+  
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - startOfYear.getTime();
+  const dayOfYear = Math.floor(diff / MS_PER_DAY);
+  
+  // 172nd day is ~June 21st (Longest day). 
+  // Approx hours of sunlight: 12 + 2.5 * sin(...)
+  // This is a rough visual approximation, not astronomical.
+  const lat = 40; // Assuming ~40deg N lat as a generic default
+  const sunlightHours = 12 + 3 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 80));
+  const solarNoon = 12; // 12:00 PM
+  const sunriseHour = solarNoon - sunlightHours / 2;
+  const sunsetHour = solarNoon + sunlightHours / 2;
+
+  const currentHourDecimal = now.getHours() + now.getMinutes() / 60;
+  
+  const totalMs = sunlightHours * MS_PER_HOUR;
+  let elapsedMs = 0;
+  
+  if (currentHourDecimal < sunriseHour) {
+      // Before sunrise
+      elapsedMs = 0;
+  } else if (currentHourDecimal > sunsetHour) {
+      // After sunset
+      elapsedMs = totalMs;
+  } else {
+      // During day
+      elapsedMs = (currentHourDecimal - sunriseHour) * MS_PER_HOUR;
+  }
+
+  const remainingMs = totalMs - elapsedMs;
+  const percentage = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+
+  const sunriseTime = new Date(now);
+  sunriseTime.setHours(Math.floor(sunriseHour), (sunriseHour % 1) * 60);
+  const sunsetTime = new Date(now);
+  sunsetTime.setHours(Math.floor(sunsetHour), (sunsetHour % 1) * 60);
+
+  const period = currentHourDecimal > sunsetHour || currentHourDecimal < sunriseHour 
+      ? "Night Time (Waiting for Sunrise)" 
+      : `Daylight (${sunriseTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${sunsetTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})})`;
+
+  return {
+      percentage,
+      elapsed: formatDuration(elapsedMs, 'hm'),
+      remaining: formatDuration(remainingMs, 'hm'),
+      period,
+      raw: { totalMs, elapsedMs, remainingMs }
+  };
+};
+
 export const getWeekDetails = (now: Date, weekStartDay: WeekStartDay = 0): TimeDetails => {
   const currentDay = now.getDay(); // 0 (Sun) - 6 (Sat)
   let daysToSubtract = currentDay - weekStartDay;
@@ -157,6 +231,32 @@ export const getWeekDetails = (now: Date, weekStartDay: WeekStartDay = 0): TimeD
     remaining: formatDuration(remainingMs),
     period: `${formatDate(startOfWeek)} - ${formatDate(new Date(endOfWeek.getTime() - 1))}`,
     raw: { totalMs, elapsedMs, remainingMs }
+  };
+};
+
+export const getMoonPhaseDetails = (now: Date): TimeDetails => {
+  const synodicMonth = 29.53058867 * MS_PER_DAY; // Length of lunar cycle
+  const knownNewMoon = new Date('2000-01-06T18:14:00Z').getTime();
+  const msSinceNewMoon = now.getTime() - knownNewMoon;
+  const elapsedMs = msSinceNewMoon % synodicMonth;
+  const remainingMs = synodicMonth - elapsedMs;
+  const percentage = (elapsedMs / synodicMonth) * 100;
+  
+  let phaseName = "New Moon";
+  if (percentage > 2 && percentage < 23) phaseName = "Waxing Crescent";
+  else if (percentage >= 23 && percentage < 27) phaseName = "First Quarter";
+  else if (percentage >= 27 && percentage < 48) phaseName = "Waxing Gibbous";
+  else if (percentage >= 48 && percentage < 52) phaseName = "Full Moon";
+  else if (percentage >= 52 && percentage < 73) phaseName = "Waning Gibbous";
+  else if (percentage >= 73 && percentage < 77) phaseName = "Last Quarter";
+  else if (percentage >= 77 && percentage < 98) phaseName = "Waning Crescent";
+
+  return {
+    percentage,
+    elapsed: `${(elapsedMs / MS_PER_DAY).toFixed(1)} days`,
+    remaining: `${(remainingMs / MS_PER_DAY).toFixed(1)} days`,
+    period: `Phase: ${phaseName}`,
+    raw: { totalMs: synodicMonth, elapsedMs, remainingMs }
   };
 };
 
@@ -226,6 +326,56 @@ export const getYearDetails = (now: Date): TimeDetails => {
   };
 };
 
+export const getSeasonDetails = (now: Date): TimeDetails => {
+  // Meteorological Seasons (N. Hemisphere)
+  // Spring: Mar 1 - May 31
+  // Summer: Jun 1 - Aug 31
+  // Autumn: Sep 1 - Nov 30
+  // Winter: Dec 1 - Feb 28/29
+  
+  const year = now.getFullYear();
+  let start, end, seasonName;
+
+  // Determine current season
+  const month = now.getMonth(); // 0-11
+  
+  if (month >= 2 && month <= 4) {
+    seasonName = "Spring";
+    start = new Date(year, 2, 1);
+    end = new Date(year, 5, 1);
+  } else if (month >= 5 && month <= 7) {
+    seasonName = "Summer";
+    start = new Date(year, 5, 1);
+    end = new Date(year, 8, 1);
+  } else if (month >= 8 && month <= 10) {
+    seasonName = "Autumn";
+    start = new Date(year, 8, 1);
+    end = new Date(year, 11, 1);
+  } else {
+    seasonName = "Winter";
+    if (month === 11) { // Dec
+      start = new Date(year, 11, 1);
+      end = new Date(year + 1, 2, 1);
+    } else { // Jan, Feb
+      start = new Date(year - 1, 11, 1);
+      end = new Date(year, 2, 1);
+    }
+  }
+
+  const totalMs = end.getTime() - start.getTime();
+  const elapsedMs = now.getTime() - start.getTime();
+  const remainingMs = totalMs - elapsedMs;
+  const percentage = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+
+  return {
+    percentage,
+    elapsed: formatDuration(elapsedMs, 'hm'),
+    remaining: formatDuration(remainingMs, 'hm'),
+    period: `${seasonName} (Meteorological)`,
+    raw: { totalMs, elapsedMs, remainingMs }
+  };
+};
+
 export const getDecadeDetails = (now: Date): TimeDetails => {
   const currentYear = now.getFullYear();
   const startYearOfDecade = Math.floor(currentYear / 10) * 10;
@@ -243,7 +393,50 @@ export const getDecadeDetails = (now: Date): TimeDetails => {
     percentage,
     elapsed: formatDuration(elapsedMs, 'hm'),
     remaining: formatDuration(remainingMs, 'hm'),
-    period: `Decade: ${startYearOfDecade} - ${startYearOfDecade + 9}`,
+    period: `Decade: ${startYearOfDecade}s`,
+    raw: { totalMs, elapsedMs, remainingMs }
+  };
+};
+
+export const getCenturyDetails = (now: Date): TimeDetails => {
+  const currentYear = now.getFullYear();
+  const startYear = Math.floor(currentYear / 100) * 100;
+  
+  const startOfCentury = new Date(startYear, 0, 1);
+  const endOfCentury = new Date(startYear + 100, 0, 1);
+  
+  const totalMs = endOfCentury.getTime() - startOfCentury.getTime();
+  const elapsedMs = now.getTime() - startOfCentury.getTime();
+  const remainingMs = totalMs - elapsedMs;
+  const percentage = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+  
+  const centuryNum = Math.floor(currentYear / 100) + 1;
+
+  return {
+    percentage,
+    elapsed: `${Math.floor(elapsedMs / (MS_PER_DAY * 365))} years`,
+    remaining: `${Math.floor(remainingMs / (MS_PER_DAY * 365))} years`,
+    period: `${centuryNum}${centuryNum === 21 ? 'st' : 'th'} Century`,
+    raw: { totalMs, elapsedMs, remainingMs }
+  };
+};
+
+export const getLifeDetails = (now: Date, _ws: WeekStartDay, birthDateStr?: string): TimeDetails => {
+  const birth = birthDateStr ? new Date(birthDateStr) : new Date('1990-01-01');
+  const avgLifespanYears = 72;
+  const endOfLife = new Date(birth);
+  endOfLife.setFullYear(birth.getFullYear() + avgLifespanYears);
+  
+  const totalMs = endOfLife.getTime() - birth.getTime();
+  const elapsedMs = now.getTime() - birth.getTime();
+  const remainingMs = totalMs - elapsedMs;
+  const percentage = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+
+  return {
+    percentage,
+    elapsed: `${(elapsedMs / (MS_PER_DAY * 365.25)).toFixed(1)} years`,
+    remaining: `${(remainingMs / (MS_PER_DAY * 365.25)).toFixed(1)} years`,
+    period: `Life Expectancy (~${avgLifespanYears}y)`,
     raw: { totalMs, elapsedMs, remainingMs }
   };
 };

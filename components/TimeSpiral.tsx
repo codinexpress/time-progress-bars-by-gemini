@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { TimeSpiralProps } from '../types';
 
@@ -33,15 +34,16 @@ const TimeSpiral: React.FC<TimeSpiralProps> = ({
   const centerX = viewBoxSize / 2;
   const centerY = viewBoxSize / 2;
 
-  const a = 5; 
-  const b = 5; 
-  const rotations = 3;
-  const pointsPerRotation = 60; 
+  // Updated parameters for a better shape that fills the box
+  const a = 2.5; // Start radius (inner hole size)
+  const b = 10.5; // Growth per rotation (controls distance between loops)
+  const rotations = 4; // Number of full loops
+  const pointsPerRotation = 120; // Higher resolution for smoother curves
 
   const spiralPathData = useMemo(() => generateSpiralPath(a, b, rotations, pointsPerRotation, centerX, centerY), [a, b, rotations, pointsPerRotation, centerX, centerY]);
   
   const totalPathLength = useMemo(() => {
-    if (typeof document === 'undefined') return 200; 
+    if (typeof document === 'undefined') return 300; 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', spiralPathData);
     return path.getTotalLength();
@@ -68,7 +70,8 @@ const TimeSpiral: React.FC<TimeSpiralProps> = ({
       </div>
 
       <div className={`relative ${containerSizeClass}`}>
-        <svg viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`} className="w-full h-full">
+        <svg viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`} className="w-full h-full transform rotate-[-90deg]">
+          {/* Rotate -90deg to start from top, usually looks better for time progress */}
           <path
             d={spiralPathData}
             stroke={trackColor}

@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { AppSettings, ProgressItemConfig, Theme } from '../types';
 import ProgressBar from './ProgressBar';
@@ -25,10 +26,10 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
   onClose,
   isMaximized = false 
 }) => {
-  const { visualizationMode, customColors, weekStartDay, theme, globalDecimalPlaces, decimalPlaceOverrides } = settings;
+  const { visualizationMode, customColors, weekStartDay, theme, globalDecimalPlaces, decimalPlaceOverrides, birthDate } = settings;
 
   const effectiveHexColor = customColors[config.id] || config.baseColor;
-  const details = config.getDetails(currentTime, weekStartDay);
+  const details = config.getDetails(currentTime, weekStartDay, birthDate);
   
   // Determine decimal places: Override > Global > Default (2)
   const decimalPlaces = decimalPlaceOverrides[config.id] ?? globalDecimalPlaces ?? 2;
@@ -98,8 +99,8 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
             {...commonProps}
             pixelColor={colors.primary}
             emptyPixelColor={colors.emptyPixel}
-            gridRows={config.id === 'second' || config.id === 'minute' ? 6 : (config.gridConfig?.rows ?? 10)}
-            gridCols={config.id === 'second' || config.id === 'minute' ? 10 : (config.gridConfig?.cols ?? 10)}
+            gridRows={config.gridConfig?.rows ?? 10}
+            gridCols={config.gridConfig?.cols ?? 10}
             sizeClassName={isMaximized ? maximizedSizeClass : undefined}
           />
         );
