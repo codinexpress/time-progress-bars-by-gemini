@@ -20,7 +20,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange })
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState<React.CSSProperties>({});
 
-  useEffect(() => {
+  const updateIndicator = () => {
     const activeTabIndex = tabs.findIndex(t => t.id === activeTab);
     const activeTabElement = tabRefs.current[activeTabIndex];
     if (activeTabElement) {
@@ -29,10 +29,17 @@ const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange })
         width: activeTabElement.offsetWidth,
       });
     }
+  };
+
+  useEffect(() => {
+    updateIndicator();
+    // Update on resize to handle orientation changes or window resizing
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
   }, [activeTab]);
 
   return (
-    <div className="mb-8 border-b border-slate-200 dark:border-slate-700">
+    <div className="mb-8 border-b border-slate-200 dark:border-slate-700 w-full">
       <nav className="relative flex space-x-2 sm:space-x-6 overflow-x-auto pb-px no-scrollbar w-full" aria-label="Tabs">
         {tabs.map((tab, index) => (
           <button
@@ -48,9 +55,10 @@ const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange })
             {tab.label}
           </button>
         ))}
-        {/* Animated Indicator moved inside nav to prevent overflow and sync with scroll */}
+        {/* Animated Indicator moved inside nav to prevent overflow and sync with scroll. 
+            Added !ml-0 to prevent parent's space-x-* from adding margin to this absolute element. */}
         <div
-          className="absolute bottom-0 h-[3px] bg-sky-500 dark:bg-sky-400 rounded-t-sm transition-all duration-300 ease-out z-0"
+          className="absolute bottom-0 h-[3px] bg-sky-500 dark:bg-sky-400 rounded-t-sm transition-all duration-300 ease-out z-0 !ml-0"
           style={indicatorStyle}
         />
       </nav>

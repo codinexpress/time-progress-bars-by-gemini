@@ -10,6 +10,11 @@ const AboutSection: React.FC = () => {
           Time Flux is a conceptual visualization tool designed to help you perceive the flow of existence across various scales. 
           From the fleeting millisecond to the span of a human life, this application breaks down time into tangible metrics.
         </p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 italic mt-2">
+          Made by Ireneo and the cool G.
+          <br />
+          Inspired by "Progress Bar Of The Year" page from Facebook.
+        </p>
       </section>
 
       <section className="space-y-3">
