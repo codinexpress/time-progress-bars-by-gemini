@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HourglassProps } from '../types';
 
@@ -41,12 +42,13 @@ const Hourglass: React.FC<HourglassProps> = ({
   // Determine sizes
   const labelTextSize = isMaximized ? 'text-xl sm:text-2xl' : 'text-sm sm:text-md';
   const iconSize = isMaximized ? 'w-8 h-8' : 'w-5 h-5 sm:w-6 sm:h-6';
-  const percentTextSize = isMaximized ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl';
-  const detailTextSize = isMaximized ? 'text-lg' : 'text-xs';
+  // Slightly increased font size for percentage as it is now standalone
+  const percentTextSize = isMaximized ? 'text-4xl sm:text-6xl' : 'text-xl sm:text-2xl';
+  const detailTextSize = isMaximized ? 'text-sm sm:text-lg' : 'text-xs';
 
-  // Scale the container size
+  // Scale the container size - Adjusted to ensure it fits on mobile screens vertically with text below
   const containerStyle = isMaximized 
-    ? { width: 'min(60vh, 60vw)', height: 'min(90vh, 90vw)', maxHeight: '600px', maxWidth: '400px' }
+    ? { width: 'min(60vh, 60vw)', height: 'min(90vh, 90vw)', maxHeight: '400px', maxWidth: '266px' }
     : { width: '60px', height: '90px' }; // Base aspect ratio roughly 1:1.5
 
   return (
@@ -90,12 +92,13 @@ const Hourglass: React.FC<HourglassProps> = ({
             mask={`url(#${maskIdBottom})`}
           />
         </svg>
-        <div 
-          className={`absolute inset-0 flex items-center justify-center ${percentTextSize} font-bold font-mono`}
-          style={{ color: percentageColor, textShadow: '0 1px 2px rgba(255,255,255,0.5)' }}
-        >
-          {clampedPercentage.toFixed(decimalPlaces)}%
-        </div>
+      </div>
+
+      <div 
+        className={`${percentTextSize} font-bold font-mono mt-2 sm:mt-4`}
+        style={{ color: percentageColor }}
+      >
+        {clampedPercentage.toFixed(decimalPlaces)}%
       </div>
       
       {details && (

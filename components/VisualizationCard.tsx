@@ -47,6 +47,9 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
     };
   }, [effectiveHexColor, theme]);
 
+  // Responsive sizing for circular/square viz when maximized
+  const maximizedSizeClass = "w-[65vmin] h-[65vmin] max-w-[320px] max-h-[320px] sm:max-w-[450px] sm:max-h-[450px]";
+
   const commonProps = {
     label: config.label,
     percentage: details.percentage,
@@ -63,14 +66,13 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
       ? 'bg-slate-800/80 border-slate-700' 
       : 'bg-white/90 border-slate-200/80'}`;
 
+  // Using flex-col and justify-center allows content to stretch horizontally (items-stretch is default)
+  // This ensures ProgressBar takes full width, while other components center themselves internally.
   const containerClass = isMaximized
-    ? `w-full max-w-3xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'} rounded-2xl p-6 sm:p-10 shadow-2xl flex items-center justify-center relative`
+    ? `w-full max-w-2xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'} rounded-2xl p-5 sm:p-8 shadow-2xl flex flex-col justify-center relative mx-auto`
     : visualizationMode === 'bars'
       ? `group relative hover:scale-[1.02] transition-transform duration-300`
       : `${cardBaseClass} group hover:scale-[1.02] hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 transition-transform duration-300`;
-
-  // Determine large sizes for circular visualizations when maximized
-  const maximizedSizeClass = "w-64 h-64 sm:w-96 sm:h-96";
 
   const renderContent = () => {
     switch (visualizationMode) {

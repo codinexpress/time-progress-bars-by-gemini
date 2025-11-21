@@ -57,11 +57,12 @@ const PixelGrid: React.FC<PixelGridProps> = ({
 
   const labelTextSize = isMaximized ? 'text-xl sm:text-2xl' : 'text-sm sm:text-md';
   const iconSize = isMaximized ? 'w-8 h-8' : 'w-5 h-5 sm:w-6 sm:h-6';
-  const percentTextSize = isMaximized ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl';
-  const detailTextSize = isMaximized ? 'text-lg' : 'text-xs';
-  const legendSize = isMaximized ? 'text-sm sm:text-base' : 'text-[10px] sm:text-xs';
+  const percentTextSize = isMaximized ? 'text-3xl sm:text-5xl' : 'text-xl sm:text-2xl';
+  const detailTextSize = isMaximized ? 'text-sm sm:text-lg' : 'text-xs';
+  const legendSize = isMaximized ? 'text-xs sm:text-base' : 'text-[10px] sm:text-xs';
   
-  const containerMaxWidth = isMaximized ? '600px' : '240px';
+  // Allow width to be 100% when maximized, constrained by parent card max-width
+  const containerMaxWidth = isMaximized ? '100%' : '240px';
 
   return (
     <div className={`p-4 flex flex-col items-center ${textColor} w-full`}>

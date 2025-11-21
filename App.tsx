@@ -216,15 +216,17 @@ const App: React.FC = () => {
 
       {/* Maximized View Modal Overlay */}
       {maximizedConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setMaximizedConfigId(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl flex justify-center">
-             <VisualizationCard
-                config={maximizedConfig}
-                currentTime={currentTime}
-                settings={settings}
-                isMaximized={true}
-                onClose={() => setMaximizedConfigId(null)}
-             />
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm" onClick={() => setMaximizedConfigId(null)}>
+          <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl flex justify-center animate-fadeIn">
+               <VisualizationCard
+                  config={maximizedConfig}
+                  currentTime={currentTime}
+                  settings={settings}
+                  isMaximized={true}
+                  onClose={() => setMaximizedConfigId(null)}
+               />
+            </div>
           </div>
         </div>
       )}
