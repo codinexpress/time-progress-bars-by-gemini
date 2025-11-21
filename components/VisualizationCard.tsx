@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { AppSettings, ProgressItemConfig, Theme } from '../types';
+import { AppSettings, ProgressItemConfig, VisualizationMode } from '../types';
 import ProgressBar from './ProgressBar';
 import TimeOrbit from './TimeOrbit';
 import PixelGrid from './PixelGrid';
@@ -17,6 +17,15 @@ interface VisualizationCardProps {
   onClose?: () => void;
   isMaximized?: boolean;
 }
+
+const VIZ_COMPONENTS: Record<VisualizationMode, React.ComponentType<any>> = {
+  bars: ProgressBar,
+  orbits: TimeOrbit,
+  pixels: PixelGrid,
+  spiral: TimeSpiral,
+  hourglass: Hourglass,
+  radialSlice: RadialSlice,
+};
 
 const VisualizationCard: React.FC<VisualizationCardProps> = ({ 
   config, 
@@ -35,14 +44,15 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
   const decimalPlaces = decimalPlaceOverrides[config.id] ?? globalDecimalPlaces ?? 2;
 
   const colors = useMemo(() => {
+    const isDark = theme === 'dark';
     return {
       primary: effectiveHexColor,
       unitSpecificText: effectiveHexColor,
       emptyPixel: `${effectiveHexColor}33`,
-      cardGeneralTextColor: theme === 'dark' ? 'text-slate-300' : 'text-slate-700',
-      progressBarDetailTextColor: theme === 'dark' ? 'text-slate-400' : 'text-slate-500',
-      orbitColor: theme === 'dark' ? '#334155' : '#e2e8f0',
-      frameColor: theme === 'dark' ? '#64748b' : '#94a3b8',
+      cardGeneralTextColor: isDark ? 'text-slate-300' : 'text-slate-700',
+      progressBarDetailTextColor: isDark ? 'text-slate-400' : 'text-slate-500',
+      orbitColor: isDark ? '#334155' : '#e2e8f0',
+      frameColor: isDark ? '#64748b' : '#94a3b8',
       trailColor: 'bg-slate-100 dark:bg-slate-800',
     };
   }, [effectiveHexColor, theme]);
@@ -60,84 +70,57 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
     isMaximized: isMaximized,
     decimalPlaces: decimalPlaces,
   };
+
+  const specificProps = {
+    bars: {
+      icon: config.icon({ className: 'w-5 h-5', color: colors.progressBarDetailTextColor }),
+      textColor: colors.progressBarDetailTextColor,
+      barColor: colors.primary,
+      trailColor: colors.trailColor,
+    },
+    orbits: {
+      planetColor: colors.primary,
+      orbitColor: colors.orbitColor,
+      sizeClassName: isMaximized ? maximizedSizeClass : undefined,
+    },
+    pixels: {
+      pixelColor: colors.primary,
+      emptyPixelColor: colors.emptyPixel,
+      gridRows: config.gridConfig?.rows ?? 10,
+      gridCols: config.gridConfig?.cols ?? 10,
+      sizeClassName: isMaximized ? maximizedSizeClass : undefined,
+      legend: config.pixelGridLegend,
+    },
+    spiral: {
+      spiralColor: colors.primary,
+      trackColor: colors.orbitColor,
+      sizeClassName: isMaximized ? maximizedSizeClass : undefined,
+    },
+    hourglass: {
+      sandColor: colors.primary,
+      frameColor: colors.frameColor,
+      sizeClassName: isMaximized ? maximizedSizeClass : undefined,
+    },
+    radialSlice: {
+      sliceColor: colors.primary,
+      trackColor: colors.orbitColor,
+      sizeClassName: isMaximized ? maximizedSizeClass : undefined,
+    }
+  };
   
   const cardBaseClass = `relative w-full rounded-xl shadow-xl backdrop-blur-md border transition-all duration-300 
     ${theme === 'dark' 
       ? 'bg-slate-800/80 border-slate-700' 
       : 'bg-white/90 border-slate-200/80'}`;
 
-  // Using flex-col and justify-center allows content to stretch horizontally (items-stretch is default)
-  // This ensures ProgressBar takes full width, while other components center themselves internally.
   const containerClass = isMaximized
     ? `w-full max-w-2xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'} rounded-2xl p-5 sm:p-8 shadow-2xl flex flex-col justify-center relative mx-auto`
     : visualizationMode === 'bars'
       ? `group relative hover:scale-[1.02] transition-transform duration-300`
       : `${cardBaseClass} group hover:scale-[1.02] hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 transition-transform duration-300`;
 
-  const renderContent = () => {
-    switch (visualizationMode) {
-      case 'bars':
-        return (
-          <ProgressBar
-            {...commonProps}
-            icon={config.icon({ className: 'w-5 h-5', color: colors.progressBarDetailTextColor })}
-            textColor={colors.progressBarDetailTextColor}
-            barColor={colors.primary}
-            trailColor={colors.trailColor}
-          />
-        );
-      case 'orbits':
-        return (
-          <TimeOrbit
-            {...commonProps}
-            planetColor={colors.primary}
-            orbitColor={colors.orbitColor}
-            sizeClassName={isMaximized ? maximizedSizeClass : undefined}
-          />
-        );
-      case 'pixels':
-        return (
-          <PixelGrid
-            {...commonProps}
-            pixelColor={colors.primary}
-            emptyPixelColor={colors.emptyPixel}
-            gridRows={config.gridConfig?.rows ?? 10}
-            gridCols={config.gridConfig?.cols ?? 10}
-            sizeClassName={isMaximized ? maximizedSizeClass : undefined}
-            legend={config.pixelGridLegend}
-          />
-        );
-      case 'spiral':
-        return (
-          <TimeSpiral
-            {...commonProps}
-            spiralColor={colors.primary}
-            trackColor={colors.orbitColor}
-            sizeClassName={isMaximized ? maximizedSizeClass : undefined}
-          />
-        );
-      case 'hourglass':
-        return (
-          <Hourglass
-            {...commonProps}
-            sandColor={colors.primary}
-            frameColor={colors.frameColor}
-            sizeClassName={isMaximized ? maximizedSizeClass : undefined}
-          />
-        );
-      case 'radialSlice':
-        return (
-          <RadialSlice
-            {...commonProps}
-            sliceColor={colors.primary}
-            trackColor={colors.orbitColor}
-            sizeClassName={isMaximized ? maximizedSizeClass : undefined}
-          />
-        );
-      default:
-        return null;
-    }
-  };
+  const SelectedComponent = VIZ_COMPONENTS[visualizationMode];
+  const modeProps = specificProps[visualizationMode] || {};
 
   return (
     <div className={containerClass}>
@@ -162,7 +145,9 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
         )}
       </div>
 
-      {renderContent()}
+      {SelectedComponent && (
+        <SelectedComponent {...commonProps} {...modeProps} />
+      )}
     </div>
   );
 };

@@ -1,16 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Comment, Theme } from '../types';
-import { getValue, updateValue, updateStringValue, getStringValue } from '../utils/apiUtils';
+import React, { useState } from 'react';
+import { Theme } from '../types';
+import { useComments } from '../hooks/useComments';
 
 interface CommentSectionProps {
   appTheme: Theme;
 }
-
-// Circular Buffer Configuration
-const MAX_COMMENTS = 100;
-const CURSOR_KEY = 'tf_chat_cursor_v5'; 
-const MSG_KEY_PREFIX = 'tf_chat_msg_v5_';
 
 const formatCommentTimestamp = (isoTimestamp: string): string => {
   const date = new Date(isoTimestamp);
@@ -30,139 +25,26 @@ const formatCommentTimestamp = (isoTimestamp: string): string => {
 };
 
 const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [statusMessage, setStatusMessage] = useState<string>('Syncing...');
-  const [error, setError] = useState<string | null>(null);
+  const { 
+    comments, 
+    isLoading, 
+    statusMessage, 
+    error, 
+    isSubmitting, 
+    fetchComments, 
+    postComment 
+  } = useComments();
+
   const [nameInput, setNameInput] = useState<string>('');
   const [commentInput, setCommentInput] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  const fetchComments = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    setStatusMessage('Syncing neural feed...');
-    
-    try {
-      // 1. Get the Global Cursor (Total comments ever posted)
-      const cursor = await getValue(CURSOR_KEY);
-      const totalCount = cursor || 0;
-
-      if (totalCount === 0) {
-        setComments([]);
-        setIsLoading(false);
-        setStatusMessage('');
-        return;
-      }
-
-      // 2. Determine which slots to fetch (Last MAX_COMMENTS)
-      const fetchPromises: Promise<string | null>[] = [];
-      const countToFetch = Math.min(totalCount, MAX_COMMENTS);
-
-      // We loop backwards from the current cursor to get latest first
-      for (let i = 0; i < countToFetch; i++) {
-        // The cursor points to the *last written* index (logically).
-        const logicalIndex = totalCount - i;
-        const slot = (logicalIndex - 1) % MAX_COMMENTS;
-        const key = `${MSG_KEY_PREFIX}${slot}`;
-        fetchPromises.push(getStringValue(key));
-      }
-
-      // 3. Fetch in Batches
-      // Batching is crucial to avoid browser connection limits and network errors ("Failed to fetch")
-      const BATCH_SIZE = 10;
-      const results: (string | null)[] = [];
-      
-      for (let i = 0; i < fetchPromises.length; i += BATCH_SIZE) {
-        setStatusMessage(`Syncing... (${Math.min(i + BATCH_SIZE, fetchPromises.length)}/${countToFetch})`);
-        const batch = fetchPromises.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.all(batch);
-        results.push(...batchResults);
-        
-        // Small delay to yield to main thread and network stack
-        if (i + BATCH_SIZE < fetchPromises.length) {
-          await new Promise(r => setTimeout(r, 100));
-        }
-      }
-
-      // 4. Parse and Filter
-      const fetchedComments: Comment[] = [];
-      results.forEach((res) => {
-        if (res) {
-          try {
-            const parsed = JSON.parse(res);
-            if (parsed && parsed.text) {
-              fetchedComments.push(parsed);
-            }
-          } catch (e) {
-            // Ignore corrupted slots
-          }
-        }
-      });
-
-      // Sort just in case, though the fetch order is roughly chronological reversed
-      fetchedComments.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
-      setComments(fetchedComments);
-      setStatusMessage('');
-    } catch (err) {
-      console.error(err);
-      setError('Failed to retrieve transmission.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentInput.trim() || isSubmitting) return;
+    if (!commentInput.trim()) return;
 
-    setIsSubmitting(true);
-    setError(null);
-
-    const newComment: Comment = {
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
-      author: nameInput.trim() || 'Anonymous',
-      text: commentInput.trim(),
-      timestamp: new Date().toISOString(),
-    };
-
-    try {
-      // Optimistic UI update
-      setComments(prev => [newComment, ...prev]);
+    const success = await postComment(nameInput, commentInput);
+    if (success) {
       setCommentInput('');
-
-      // 1. Get current cursor
-      const currentCursor = await getValue(CURSOR_KEY) || 0;
-      
-      // 2. Calculate new slot
-      const newCursor = currentCursor + 1;
-      const slot = (newCursor - 1) % MAX_COMMENTS;
-      
-      // 3. Write Comment to its own key pair
-      // Using updateStringValue which now handles safe Base64 encoding
-      const key = `${MSG_KEY_PREFIX}${slot}`;
-      const successWrite = await updateStringValue(key, JSON.stringify(newComment));
-      
-      if (!successWrite) throw new Error("Failed to uplink message. Network may be busy.");
-
-      // 4. Update Cursor
-      const successCursor = await updateValue(CURSOR_KEY, newCursor);
-      
-      if (!successCursor) console.warn("Cursor update failed, but comment might be saved.");
-
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Transmission failed';
-      setError(msg);
-      // Revert optimistic update on hard fail
-      // We delay this slightly to not jar the user immediately if it's a minor network blip
-      setTimeout(fetchComments, 1000);
-    } finally {
-      setIsSubmitting(false);
     }
   };
   
