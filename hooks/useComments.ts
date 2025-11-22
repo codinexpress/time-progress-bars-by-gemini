@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Comment } from '../types';
 import { getValue, updateValue, updateStringValue, getStringValue } from '../utils/apiUtils';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const MAX_COMMENTS = 100;
 const CURSOR_KEY = 'tf_chat_cursor_v5'; 
@@ -63,7 +64,8 @@ export const useComments = () => {
               fetchedComments.push(parsed);
             }
           } catch (e) {
-            // Ignore corrupted slots
+            // Ignore corrupted slots - usually doesn't need a user alert
+            console.warn("Corrupted comment slot found, skipping.");
           }
         }
       });
@@ -73,8 +75,8 @@ export const useComments = () => {
       setComments(fetchedComments);
       setStatusMessage('');
     } catch (err) {
-      console.error(err);
-      setError('Failed to retrieve transmission.');
+      console.error("fetchComments error:", err);
+      setError(`Connection disrupted: ${getErrorMessage(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -106,14 +108,15 @@ export const useComments = () => {
       const key = `${MSG_KEY_PREFIX}${slot}`;
       
       const successWrite = await updateStringValue(key, JSON.stringify(newComment));
-      if (!successWrite) throw new Error("Failed to uplink message. Network may be busy.");
+      if (!successWrite) throw new Error("Server failed to acknowledge write operation.");
 
       await updateValue(CURSOR_KEY, newCursor);
       return true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Transmission failed';
-      setError(msg);
-      // Re-fetch to sync state if failed
+      console.error("postComment error:", err);
+      const msg = getErrorMessage(err);
+      setError(`Transmission failed: ${msg}`);
+      // Re-fetch to sync state if failed to ensure optimistic update is reverted if needed
       setTimeout(fetchComments, 1000);
       return false;
     } finally {

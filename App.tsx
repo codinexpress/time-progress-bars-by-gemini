@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ColorCustomizer from './components/ColorCustomizer';
 import CommentSection from './components/CommentSection';
 import FeedbackSection from './components/FeedbackSection';
@@ -12,6 +12,7 @@ import { EyeIcon } from './components/Icons';
 import { ActiveTab } from './types';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useFeedback } from './hooks/useFeedback';
+import { getUrlParam, setUrlParam } from './utils/urlUtils';
 
 const App: React.FC = () => {
   const { 
@@ -32,12 +33,38 @@ const App: React.FC = () => {
     handleRate 
   } = useFeedback();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('visualizations');
-  const [isFocusMode, setIsFocusMode] = useState(false);
+  // Initialize state from URL params or default
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    const tabParam = getUrlParam('tab');
+    const validTabs: ActiveTab[] = ['visualizations', 'settings', 'colors', 'comments', 'feedback', 'about'];
+    return (tabParam && validTabs.includes(tabParam as ActiveTab)) 
+      ? (tabParam as ActiveTab) 
+      : 'visualizations';
+  });
+
+  const [isFocusMode, setIsFocusMode] = useState(() => {
+    const focusParam = getUrlParam('focus');
+    return focusParam === 'true' || focusParam === '1';
+  });
+
+  // Sync URL when activeTab changes
+  useEffect(() => {
+    setUrlParam('tab', activeTab === 'visualizations' ? null : activeTab);
+  }, [activeTab]);
+
+  // Sync URL when focus mode changes
+  useEffect(() => {
+    setUrlParam('focus', isFocusMode ? 'true' : null);
+  }, [isFocusMode]);
 
   const handleResetAll = () => {
     resetAllSettings();
     setActiveTab('visualizations');
+    setIsFocusMode(false);
+    // Clear app-level URL params
+    setUrlParam('tab', null);
+    setUrlParam('focus', null);
+    setUrlParam('item', null);
   };
   
   return (
@@ -136,7 +163,7 @@ const App: React.FC = () => {
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Crafted with React, TypeScript & Tailwind CSS.
               <br />
-              <span className="opacity-70 mt-1 inline-block">Version 2.6.0 - Optimized Core</span>
+              <span className="opacity-70 mt-1 inline-block">Version 2.7.0 - Deep Link Enabled</span>
             </p>
           </footer>
         )}

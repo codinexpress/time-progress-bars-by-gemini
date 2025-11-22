@@ -6,6 +6,7 @@ import VisualizationCard from './VisualizationCard';
 import { AppSettings, SectionId } from '../types';
 import { DEFAULT_PROGRESS_CONFIGS } from '../config/progressConfig';
 import { useTime } from '../hooks/useTime';
+import { getUrlParam, setUrlParam } from '../utils/urlUtils';
 
 interface DashboardProps {
   settings: AppSettings;
@@ -14,7 +15,16 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
   const currentTime = useTime(settings.updateIntervalMs);
-  const [maximizedConfigId, setMaximizedConfigId] = useState<string | null>(null);
+  
+  // Initialize maximized state from URL parameter 'item'
+  const [maximizedConfigId, setMaximizedConfigId] = useState<string | null>(() => {
+    return getUrlParam('item');
+  });
+
+  // Sync maximized state to URL
+  useEffect(() => {
+    setUrlParam('item', maximizedConfigId);
+  }, [maximizedConfigId]);
 
   // Close maximized view on Esc
   useEffect(() => {

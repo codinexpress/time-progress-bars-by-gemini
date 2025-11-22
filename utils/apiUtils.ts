@@ -17,7 +17,7 @@ function toUrlSafeBase64(str: string): string {
     // Make URL safe: + -> -, / -> _, remove padding =
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   } catch (e) {
-    console.error("Encoding error", e);
+    console.error("Encoding error in toUrlSafeBase64:", e);
     return "";
   }
 }
@@ -42,6 +42,7 @@ function fromUrlSafeBase64(base64: string): string {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
   } catch (e) {
+    console.warn("Decoding warning in fromUrlSafeBase64 (returning original):", e);
     // Fallback if it wasn't base64 or valid
     return base64;
   }
@@ -51,14 +52,16 @@ function fromUrlSafeBase64(base64: string): string {
  * Fetches a numeric value for a given key.
  */
 export async function getValue(key: string): Promise<number | null> {
+  const url = `${API_BASE_URL}/GetValue/${FEEDBACK_API_APP_KEY}/${key}`;
   try {
-    const response = await fetch(`${API_BASE_URL}/GetValue/${FEEDBACK_API_APP_KEY}/${key}`, {
+    const response = await fetch(url, {
       method: 'GET',
       mode: 'cors',
       cache: 'no-cache',
     });
     if (!response.ok) {
       if (response.status === 404) return 0;
+      console.warn(`API Warning: GET ${key} returned status ${response.status} (${response.statusText})`);
       return null;
     }
     const textValue = await response.text();
@@ -91,8 +94,9 @@ export async function getValue(key: string): Promise<number | null> {
  * Automatically handles Base64 decoding if detected.
  */
 export async function getStringValue(key: string): Promise<string | null> {
+  const url = `${API_BASE_URL}/GetValue/${FEEDBACK_API_APP_KEY}/${key}`;
   try {
-    const response = await fetch(`${API_BASE_URL}/GetValue/${FEEDBACK_API_APP_KEY}/${key}`, {
+    const response = await fetch(url, {
       method: 'GET',
       mode: 'cors',
       cache: 'no-cache',
@@ -100,6 +104,7 @@ export async function getStringValue(key: string): Promise<string | null> {
     
     if (!response.ok) {
       if (response.status === 404) return null;
+      console.warn(`API Warning: GET ${key} returned status ${response.status} (${response.statusText})`);
       return null;
     }
     
@@ -135,14 +140,18 @@ export async function getStringValue(key: string): Promise<string | null> {
  * Updates a numeric value for a given key.
  */
 export async function updateValue(key: string, value: number): Promise<boolean> {
+  const url = `${API_BASE_URL}/UpdateValue/${FEEDBACK_API_APP_KEY}/${key}/${String(value)}`;
   try {
-    const response = await fetch(`${API_BASE_URL}/UpdateValue/${FEEDBACK_API_APP_KEY}/${key}/${String(value)}`, {
+    const response = await fetch(url, {
       method: 'POST',
       mode: 'cors',
     });
+    if (!response.ok) {
+        console.error(`API Error: POST ${key} returned ${response.status} ${response.statusText}`);
+    }
     return response.ok;
   } catch (error) {
-    console.error(`Error updating value for key "${key}":`, error);
+    console.error(`Network error updating value for key "${key}":`, error);
     return false;
   }
 }
@@ -157,18 +166,24 @@ export async function updateStringValue(key: string, value: string): Promise<boo
     const encodedValue = toUrlSafeBase64(value);
     
     if (!encodedValue) {
-        throw new Error("Encoding failed");
+        throw new Error("Encoding failed: Result was empty");
     }
 
     // 2. Send
     // Use encodeURIComponent to ensure the Base64 string is treated as a safe path segment.
-    const response = await fetch(`${API_BASE_URL}/UpdateValue/${FEEDBACK_API_APP_KEY}/${key}/${encodeURIComponent(encodedValue)}`, {
+    const url = `${API_BASE_URL}/UpdateValue/${FEEDBACK_API_APP_KEY}/${key}/${encodeURIComponent(encodedValue)}`;
+    const response = await fetch(url, {
       method: 'POST',
       mode: 'cors',
     });
+    
+    if (!response.ok) {
+        console.error(`API Error: POST String ${key} returned ${response.status} ${response.statusText}`);
+    }
+
     return response.ok;
   } catch (error) {
-    console.error(`Error updating string for key "${key}":`, error);
+    console.error(`Network error updating string for key "${key}":`, error);
     return false;
   }
 }
