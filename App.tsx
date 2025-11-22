@@ -65,6 +65,7 @@ const App: React.FC = () => {
     setUrlParam('tab', null);
     setUrlParam('focus', null);
     setUrlParam('item', null);
+    setUrlParam('mode', null);
   };
   
   return (
@@ -163,7 +164,7 @@ const App: React.FC = () => {
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Crafted with React, TypeScript & Tailwind CSS.
               <br />
-              <span className="opacity-70 mt-1 inline-block">Version 2.7.0 - Deep Link Enabled</span>
+              <span className="opacity-70 mt-1 inline-block">Version 2.7.1 - Deep Link Enabled</span>
             </p>
           </footer>
         )}
