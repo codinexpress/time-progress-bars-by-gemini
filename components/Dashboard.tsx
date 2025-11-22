@@ -1,5 +1,6 @@
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import CurrentTimeDisplay from './CurrentTimeDisplay';
 import VisualizationCard from './VisualizationCard';
 import { AppSettings, SectionId } from '../types';
@@ -9,23 +10,22 @@ import { useTime } from '../hooks/useTime';
 interface DashboardProps {
   settings: AppSettings;
   isFocusMode: boolean;
-  maximizedUnitId: string | null;
-  setMaximizedUnitId: (id: string | null) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode, maximizedUnitId, setMaximizedUnitId }) => {
+const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
   const currentTime = useTime(settings.updateIntervalMs);
+  const [maximizedConfigId, setMaximizedConfigId] = useState<string | null>(null);
 
   // Close maximized view on Esc
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMaximizedUnitId(null);
+      if (e.key === 'Escape') setMaximizedConfigId(null);
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [setMaximizedUnitId]);
+  }, []);
 
-  const maximizedConfig = DEFAULT_PROGRESS_CONFIGS.find(c => c.id === maximizedUnitId);
+  const maximizedConfig = DEFAULT_PROGRESS_CONFIGS.find(c => c.id === maximizedConfigId);
 
   const gridLayoutClasses = {
     bars: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
@@ -78,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode, maximizedU
                               config={config}
                               currentTime={currentTime}
                               settings={settings}
-                              onMaximize={setMaximizedUnitId}
+                              onMaximize={setMaximizedConfigId}
                           />
                       ))}
                   </div>
@@ -87,8 +87,8 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode, maximizedU
       </div>
 
       {/* Maximized View Modal Overlay */}
-      {maximizedConfig && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm" onClick={() => setMaximizedUnitId(null)}>
+      {maximizedConfig && createPortal(
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/80 backdrop-blur-sm" onClick={() => setMaximizedConfigId(null)}>
           <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl flex justify-center animate-fadeIn">
                <VisualizationCard
@@ -96,11 +96,12 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode, maximizedU
                   currentTime={currentTime}
                   settings={settings}
                   isMaximized={true}
-                  onClose={() => setMaximizedUnitId(null)}
+                  onClose={() => setMaximizedConfigId(null)}
                />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
