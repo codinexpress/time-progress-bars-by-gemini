@@ -3,7 +3,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import CurrentTimeDisplay from './CurrentTimeDisplay';
 import VisualizationCard from './VisualizationCard';
-import { AppSettings, SectionId } from '../types';
+import ShareModal from './ShareModal';
+import { AppSettings, SectionId, ProgressItemConfig } from '../types';
 import { DEFAULT_PROGRESS_CONFIGS } from '../config/progressConfig';
 import { useTime } from '../hooks/useTime';
 import { getUrlParam, setUrlParam } from '../utils/urlUtils';
@@ -21,6 +22,8 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
     return getUrlParam('item');
   });
 
+  const [shareConfig, setShareConfig] = useState<ProgressItemConfig | null>(null);
+
   // Sync maximized state to URL
   useEffect(() => {
     setUrlParam('item', maximizedConfigId);
@@ -29,7 +32,10 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
   // Close maximized view on Esc
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMaximizedConfigId(null);
+      if (e.key === 'Escape') {
+        setMaximizedConfigId(null);
+        setShareConfig(null);
+      }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
@@ -89,6 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
                               currentTime={currentTime}
                               settings={settings}
                               onMaximize={setMaximizedConfigId}
+                              onShare={setShareConfig}
                           />
                       ))}
                   </div>
@@ -107,11 +114,22 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
                   settings={settings}
                   isMaximized={true}
                   onClose={() => setMaximizedConfigId(null)}
+                  onShare={setShareConfig}
                />
             </div>
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Share & Open Graph Modal */}
+      {shareConfig && (
+        <ShareModal
+          config={shareConfig}
+          settings={settings}
+          isOpen={!!shareConfig}
+          onClose={() => setShareConfig(null)}
+        />
       )}
     </>
   );

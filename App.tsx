@@ -7,12 +7,14 @@ import SettingsDisplay from './components/SettingsDisplay';
 import TabNavigation from './components/TabNavigation';
 import AboutSection from './components/AboutSection';
 import Dashboard from './components/Dashboard';
+import ShareModal from './components/ShareModal';
 import { DEFAULT_PROGRESS_CONFIGS } from './config/progressConfig';
-import { EyeIcon } from './components/Icons';
+import { EyeIcon, ShareIcon } from './components/Icons';
 import { ActiveTab } from './types';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useFeedback } from './hooks/useFeedback';
 import { getUrlParam, setUrlParam } from './utils/urlUtils';
+import { getOgImageUrl } from './utils/ogUtils';
 
 const App: React.FC = () => {
   const { 
@@ -47,6 +49,8 @@ const App: React.FC = () => {
     return focusParam === 'true' || focusParam === '1';
   });
 
+  const [isAppShareOpen, setIsAppShareOpen] = useState(false);
+
   // Sync URL when activeTab changes
   useEffect(() => {
     setUrlParam('tab', activeTab === 'visualizations' ? null : activeTab);
@@ -56,6 +60,50 @@ const App: React.FC = () => {
   useEffect(() => {
     setUrlParam('focus', isFocusMode ? 'true' : null);
   }, [isFocusMode]);
+
+  // Dynamically update document head title and Open Graph meta tags
+  useEffect(() => {
+    const itemParam = getUrlParam('item');
+    const matchedConfig = itemParam ? DEFAULT_PROGRESS_CONFIGS.find(c => c.id === itemParam) : null;
+
+    let pageTitle = 'Time Flux - Real-Time Existence Tracker';
+    let pageDesc = 'Visualize the flow of existence across second, minute, hour, day, week, month, year, decade, and century with live progress bars.';
+
+    if (matchedConfig) {
+      pageTitle = `${matchedConfig.label} Progress | Time Flux`;
+      pageDesc = `Live real-time progress of ${matchedConfig.label} on Time Flux. Track the passage of time accurately.`;
+    } else if (activeTab !== 'visualizations') {
+      pageTitle = `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} | Time Flux`;
+    }
+
+    document.title = pageTitle;
+
+    // Update dynamic OG tags in DOM
+    const ogImgUrl = getOgImageUrl({
+      item: matchedConfig?.id || null,
+      tab: activeTab !== 'visualizations' ? activeTab : null,
+      mode: settings.visualizationMode,
+      theme: settings.theme,
+    });
+
+    const ogTitleEl = document.querySelector('meta[property="og:title"]');
+    if (ogTitleEl) ogTitleEl.setAttribute('content', pageTitle);
+
+    const ogDescEl = document.querySelector('meta[property="og:description"]');
+    if (ogDescEl) ogDescEl.setAttribute('content', pageDesc);
+
+    const ogImgEl = document.querySelector('meta[property="og:image"]');
+    if (ogImgEl) ogImgEl.setAttribute('content', ogImgUrl);
+
+    const twitterTitleEl = document.querySelector('meta[name="twitter:title"]');
+    if (twitterTitleEl) twitterTitleEl.setAttribute('content', pageTitle);
+
+    const twitterDescEl = document.querySelector('meta[name="twitter:description"]');
+    if (twitterDescEl) twitterDescEl.setAttribute('content', pageDesc);
+
+    const twitterImgEl = document.querySelector('meta[name="twitter:image"]');
+    if (twitterImgEl) twitterImgEl.setAttribute('content', ogImgUrl);
+  }, [activeTab, settings.visualizationMode, settings.theme]);
 
   const handleResetAll = () => {
     resetAllSettings();
@@ -75,13 +123,23 @@ const App: React.FC = () => {
         {/* Header */}
         {!isFocusMode && (
           <header className="mb-8 text-center relative">
-            <button 
-              onClick={() => setIsFocusMode(true)}
-              className="absolute top-0 right-0 text-xs font-medium bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-full transition-all"
-              title="Enter Focus Mode"
-            >
-              Focus
-            </button>
+            <div className="absolute top-0 right-0 flex items-center gap-2">
+              <button 
+                onClick={() => setIsAppShareOpen(true)}
+                className="text-xs font-medium bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+                title="Share Time Flux Open Graph Card"
+              >
+                <ShareIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+              <button 
+                onClick={() => setIsFocusMode(true)}
+                className="text-xs font-medium bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-full transition-all"
+                title="Enter Focus Mode"
+              >
+                Focus
+              </button>
+            </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-500 via-blue-500 to-teal-500 dark:from-sky-400 dark:via-cyan-400 dark:to-teal-400 pb-2 tracking-tight font-orbitron uppercase">
               Time Flux
             </h1>
@@ -164,9 +222,19 @@ const App: React.FC = () => {
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Crafted with React, TypeScript & Tailwind CSS.
               <br />
-              <span className="opacity-70 mt-1 inline-block">Version 2.7.1 - Deep Link Enabled</span>
+              <span className="opacity-70 mt-1 inline-block">Version 2.8.0 - Dynamic Open Graph &amp; Deep Link Enabled</span>
             </p>
           </footer>
+        )}
+
+        {/* Global App Share Modal */}
+        {isAppShareOpen && (
+          <ShareModal
+            config={null}
+            settings={settings}
+            isOpen={isAppShareOpen}
+            onClose={() => setIsAppShareOpen(false)}
+          />
         )}
       </main>
     </div>

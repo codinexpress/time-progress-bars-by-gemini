@@ -7,7 +7,7 @@ import PixelGrid from './PixelGrid';
 import TimeSpiral from './TimeSpiral';
 import Hourglass from './Hourglass';
 import RadialSlice from './RadialSlice';
-import { ExpandIcon, XMarkIcon } from './Icons';
+import { ExpandIcon, XMarkIcon, ShareIcon } from './Icons';
 
 interface VisualizationCardProps {
   config: ProgressItemConfig;
@@ -15,6 +15,7 @@ interface VisualizationCardProps {
   settings: AppSettings;
   onMaximize?: (id: string) => void;
   onClose?: () => void;
+  onShare?: (config: ProgressItemConfig) => void;
   isMaximized?: boolean;
 }
 
@@ -33,6 +34,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
   settings, 
   onMaximize, 
   onClose, 
+  onShare,
   isMaximized = false 
 }) => {
   const { visualizationMode, customColors, weekStartDay, theme, globalDecimalPlaces, decimalPlaceOverrides, birthDate } = settings;
@@ -124,23 +126,37 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
 
   return (
     <div className={containerClass}>
-      {/* Control Button */}
-      <div className={`absolute top-3 right-3 z-10 transition-opacity duration-200 ${isMaximized ? '' : 'opacity-0 group-hover:opacity-100'}`}>
+      {/* Control Buttons */}
+      <div className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 transition-opacity duration-200 ${isMaximized ? '' : 'opacity-0 group-hover:opacity-100'}`}>
+        {onShare && (
+          <button
+            onClick={() => onShare(config)}
+            className={`rounded-full transition-colors flex items-center justify-center ${
+              isMaximized
+                ? 'p-2 bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400'
+                : 'p-1.5 bg-slate-100/70 dark:bg-slate-700/70 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-sky-500 dark:hover:text-sky-400'
+            }`}
+            title={`Share ${config.label} Open Graph Card`}
+          >
+            <ShareIcon className={isMaximized ? "w-5 h-5" : "w-4 h-4"} />
+          </button>
+        )}
+
         {isMaximized ? (
            <button 
              onClick={onClose}
              className="p-2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
              title="Close View"
            >
-             <XMarkIcon className="w-6 h-6" />
+             <XMarkIcon className="w-5 h-5" />
            </button>
         ) : (
           <button 
             onClick={() => onMaximize && onMaximize(config.id)}
-            className="p-1.5 rounded-full bg-slate-100/50 dark:bg-slate-700/50 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors"
+            className="p-1.5 rounded-full bg-slate-100/70 dark:bg-slate-700/70 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors"
             title="Maximize View"
           >
-            <ExpandIcon className="w-5 h-5" />
+            <ExpandIcon className="w-4 h-4" />
           </button>
         )}
       </div>

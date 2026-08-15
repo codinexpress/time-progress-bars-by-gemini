@@ -1,6 +1,9 @@
 {
   "name": "Time Progress Bars",
-  "description": "A sleek web application that visualizes the progress through various time units: day, week, month, year, and decade, with a real-time updating display.",
+  "description": "A sleek web application that visualizes the progress through various time units with dynamic Open Graph image generation via Vercel Functions.",
   "requestFramePermissions": [],
-  "prompt": ""
+  "prompt": "",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
