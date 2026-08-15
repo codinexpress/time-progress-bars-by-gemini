@@ -19,6 +19,93 @@ export interface OgData {
   period: string;
 }
 
+/**
+ * Returns the client user's UTC offset in minutes (e.g. UTC-7 => -420, UTC+8 => +480, UTC+5:30 => +330).
+ */
+export function getUserTimezoneOffset(): number {
+  if (typeof window === 'undefined') return 0;
+  return -new Date().getTimezoneOffset();
+}
+
+/**
+ * Formats a numeric offset in minutes to standard ISO offset format (e.g. "+08:00", "-07:00", "+05:30", "Z").
+ */
+export function formatUtcOffsetString(offsetMinutes: number): string {
+  if (offsetMinutes === 0) return 'Z';
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetMinutes);
+  const hours = Math.floor(abs / 60);
+  const minutes = abs % 60;
+  return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+/**
+ * Formats a numeric offset in minutes into a friendly label (e.g. "UTC+8", "UTC-7", "UTC+5:30", "UTC").
+ */
+export function formatUtcOffsetLabel(offsetMinutes: number): string {
+  if (offsetMinutes === 0) return 'UTC';
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetMinutes);
+  const hours = Math.floor(abs / 60);
+  const minutes = abs % 60;
+  if (minutes === 0) {
+    return `UTC${sign}${hours}`;
+  }
+  return `UTC${sign}${hours}:${String(minutes).padStart(2, '0')}`;
+}
+
+/**
+ * Parses various timezone/offset representations (e.g. "+08:00", "-07:00", "480", "-420", "UTC+8", "Z") into offset minutes.
+ */
+export function parseUtcOffset(tzValue: string | number | null | undefined): number {
+  if (tzValue === null || tzValue === undefined || tzValue === '') return 0;
+
+  if (typeof tzValue === 'number') {
+    // If between -14 and 14, treat as hours; otherwise treat as minutes
+    if (Math.abs(tzValue) <= 14 && tzValue !== 0) {
+      return Math.round(tzValue * 60);
+    }
+    return Math.round(tzValue);
+  }
+
+  const str = String(tzValue).trim();
+  if (str === 'Z' || str === 'z' || str.toUpperCase() === 'UTC' || str.toUpperCase() === 'GMT') {
+    return 0;
+  }
+
+  // Check for ISO offset format like "+08:00", "-07:00", "+0800", "-0700"
+  const isoMatch = str.match(/^([+-])(\d{1,2}):?(\d{2})?$/);
+  if (isoMatch) {
+    const sign = isoMatch[1] === '-' ? -1 : 1;
+    const hours = parseInt(isoMatch[2], 10);
+    const minutes = isoMatch[3] ? parseInt(isoMatch[3], 10) : 0;
+    return sign * (hours * 60 + minutes);
+  }
+
+  // Check for "UTC+8", "GMT-7", "UTC+5:30"
+  const namedMatch = str.match(/^(?:UTC|GMT)\s*([+-])\s*(\d{1,2})(?::(\d{2}))?$/i);
+  if (namedMatch) {
+    const sign = namedMatch[1] === '-' ? -1 : 1;
+    const hours = parseInt(namedMatch[2], 10);
+    const minutes = namedMatch[3] ? parseInt(namedMatch[3], 10) : 0;
+    return sign * (hours * 60 + minutes);
+  }
+
+  // Check for raw integer string (e.g. "480", "-420", "8", "-7")
+  const num = parseFloat(str);
+  if (!isNaN(num)) {
+    if (Math.abs(num) <= 14 && num !== 0 && !str.includes('.')) {
+      // Ambiguous: If string is "+8" or "-7", treat as hours. If "480", treat as minutes.
+      if (str.startsWith('+') || str.startsWith('-') || Math.abs(num) <= 12) {
+        return Math.round(num * 60);
+      }
+    }
+    return Math.round(num);
+  }
+
+  return 0;
+}
+
 export function getUnitOgData(unitId: TimeUnitId, date: Date = new Date(), weekStartDay: WeekStartDay = 0, birthDate?: string): OgData | null {
   const config = DEFAULT_PROGRESS_CONFIGS.find(c => c.id === unitId);
   if (!config) return null;
@@ -69,13 +156,15 @@ export function getAllUnitsOgData(date: Date = new Date(), weekStartDay: WeekSta
 }
 
 /**
- * Builds the canonical or relative Open Graph image URL
+ * Builds the canonical or relative Open Graph image URL with timezone and cache-busting timestamp
  */
 export function getOgImageUrl(params: {
   item?: string | null;
   tab?: string | null;
   mode?: string | null;
   theme?: 'light' | 'dark';
+  tz?: string | number | null;
+  t?: number | string | null;
   origin?: string;
 }): string {
   const query = new URLSearchParams();
@@ -83,6 +172,13 @@ export function getOgImageUrl(params: {
   if (params.tab && params.tab !== 'visualizations') query.set('tab', params.tab);
   if (params.mode && params.mode !== 'bars') query.set('mode', params.mode);
   if (params.theme && params.theme !== 'dark') query.set('theme', params.theme);
+  
+  if (params.tz !== undefined && params.tz !== null && params.tz !== '') {
+    query.set('tz', String(params.tz));
+  }
+  if (params.t !== undefined && params.t !== null && params.t !== '') {
+    query.set('t', String(params.t));
+  }
 
   const queryString = query.toString();
   const basePath = `/api/og${queryString ? `?${queryString}` : ''}`;

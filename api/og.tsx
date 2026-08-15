@@ -30,20 +30,90 @@ function formatMsDuration(ms: number, isShort = false): string {
   return parts.length > 0 ? parts.join(' ') : '0s';
 }
 
-// Compute unit data in edge runtime
-function computeUnitData(unitId: string, now: Date) {
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+const WEEKDAY_NAMES = [
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+];
+
+const WEEKDAY_SHORT = [
+  'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
+];
+
+function parseUtcOffset(tzValue: string | null): number {
+  if (!tzValue) return 0;
+  const str = tzValue.trim();
+  if (str === 'Z' || str === 'z' || str.toUpperCase() === 'UTC' || str.toUpperCase() === 'GMT') {
+    return 0;
+  }
+  const isoMatch = str.match(/^([+-])(\d{1,2}):?(\d{2})?$/);
+  if (isoMatch) {
+    const sign = isoMatch[1] === '-' ? -1 : 1;
+    const hours = parseInt(isoMatch[2], 10);
+    const minutes = isoMatch[3] ? parseInt(isoMatch[3], 10) : 0;
+    return sign * (hours * 60 + minutes);
+  }
+  const namedMatch = str.match(/^(?:UTC|GMT)\s*([+-])\s*(\d{1,2})(?::(\d{2}))?$/i);
+  if (namedMatch) {
+    const sign = namedMatch[1] === '-' ? -1 : 1;
+    const hours = parseInt(namedMatch[2], 10);
+    const minutes = namedMatch[3] ? parseInt(namedMatch[3], 10) : 0;
+    return sign * (hours * 60 + minutes);
+  }
+  const num = parseFloat(str);
+  if (!isNaN(num)) {
+    if (Math.abs(num) <= 14 && num !== 0 && !str.includes('.')) {
+      if (str.startsWith('+') || str.startsWith('-') || Math.abs(num) <= 12) {
+        return Math.round(num * 60);
+      }
+    }
+    return Math.round(num);
+  }
+  return 0;
+}
+
+function formatTzLabel(offsetMinutes: number): string {
+  if (offsetMinutes === 0) return 'UTC';
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetMinutes);
+  const hours = Math.floor(abs / 60);
+  const minutes = abs % 60;
+  if (minutes === 0) {
+    return `UTC${sign}${hours}`;
+  }
+  return `UTC${sign}${hours}:${String(minutes).padStart(2, '0')}`;
+}
+
+// Compute unit data in edge runtime with timezone offset
+function computeUnitData(unitId: string, timestampMs: number, offsetMinutes: number) {
   const MS_PER_SECOND = 1000;
   const MS_PER_MINUTE = 60 * MS_PER_SECOND;
   const MS_PER_HOUR = 60 * MS_PER_MINUTE;
   const MS_PER_DAY = 24 * MS_PER_HOUR;
 
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const date = now.getDate();
+  const localMs = timestampMs + offsetMinutes * 60 * 1000;
+  const localDate = new Date(localMs);
+
+  const year = localDate.getUTCFullYear();
+  const month = localDate.getUTCMonth();
+  const date = localDate.getUTCDate();
+  const dayOfWeek = localDate.getUTCDay();
+  const hours = localDate.getUTCHours();
+  const minutes = localDate.getUTCMinutes();
+  const seconds = localDate.getUTCSeconds();
+  const ms = localDate.getUTCMilliseconds();
 
   switch (unitId.toLowerCase()) {
     case 'second': {
-      const elapsed = now.getMilliseconds();
+      const elapsed = ms;
       const total = 1000;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
@@ -54,11 +124,11 @@ function computeUnitData(unitId: string, now: Date) {
         pct,
         elapsed: `${elapsed}ms`,
         remaining: `${remaining}ms`,
-        period: `Current Second: :${String(now.getSeconds()).padStart(2, '0')}`,
+        period: `Current Second: :${String(seconds).padStart(2, '0')}`,
       };
     }
     case 'minute': {
-      const elapsed = now.getSeconds() * 1000 + now.getMilliseconds();
+      const elapsed = seconds * 1000 + ms;
       const total = 60 * 1000;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
@@ -67,13 +137,13 @@ function computeUnitData(unitId: string, now: Date) {
         section: 'Micro Scale',
         color: '#06b6d4',
         pct,
-        elapsed: `${Math.floor(elapsed / 1000)}s`,
-        remaining: `${Math.floor(remaining / 1000)}s`,
-        period: `Current Minute: ${now.getMinutes()}m`,
+        elapsed: `${seconds}s`,
+        remaining: `${60 - seconds}s`,
+        period: `Current Minute: ${minutes}m`,
       };
     }
     case 'hour': {
-      const elapsed = now.getMinutes() * MS_PER_MINUTE + now.getSeconds() * 1000;
+      const elapsed = minutes * MS_PER_MINUTE + seconds * 1000 + ms;
       const total = MS_PER_HOUR;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
@@ -84,12 +154,12 @@ function computeUnitData(unitId: string, now: Date) {
         pct,
         elapsed: formatMsDuration(elapsed),
         remaining: formatMsDuration(remaining),
-        period: `Hour ${now.getHours()}:00 - ${now.getHours() + 1}:00`,
+        period: `Hour ${hours}:00 - ${(hours + 1) % 24}:00`,
       };
     }
     case 'heartbeat': {
       const cycle = 800;
-      const elapsed = now.getTime() % cycle;
+      const elapsed = localMs % cycle;
       const remaining = cycle - elapsed;
       const pct = (elapsed / cycle) * 100;
       return {
@@ -103,10 +173,10 @@ function computeUnitData(unitId: string, now: Date) {
       };
     }
     case 'day': {
-      const startOfDay = new Date(year, month, date).getTime();
-      const endOfDay = new Date(year, month, date + 1).getTime();
+      const startOfDay = Date.UTC(year, month, date);
+      const endOfDay = Date.UTC(year, month, date + 1);
       const total = endOfDay - startOfDay;
-      const elapsed = now.getTime() - startOfDay;
+      const elapsed = localMs - startOfDay;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       return {
@@ -116,17 +186,17 @@ function computeUnitData(unitId: string, now: Date) {
         pct,
         elapsed: formatMsDuration(elapsed),
         remaining: formatMsDuration(remaining),
-        period: `Today: ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+        period: `Today: ${MONTH_SHORT[month]} ${date}, ${year}`,
       };
     }
     case 'daylight': {
-      const startOfYear = new Date(year, 0, 1).getTime();
-      const dayOfYear = Math.floor((now.getTime() - startOfYear) / MS_PER_DAY);
+      const startOfYear = Date.UTC(year, 0, 1);
+      const dayOfYear = Math.floor((localMs - startOfYear) / MS_PER_DAY);
       const sunlightHours = 12 + 3 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 80));
       const solarNoon = 12;
       const sunrise = solarNoon - sunlightHours / 2;
       const sunset = solarNoon + sunlightHours / 2;
-      const currentHour = now.getHours() + now.getMinutes() / 60;
+      const currentHour = hours + minutes / 60 + seconds / 3600;
       const total = sunlightHours * MS_PER_HOUR;
       let elapsed = 0;
       if (currentHour < sunrise) elapsed = 0;
@@ -145,11 +215,10 @@ function computeUnitData(unitId: string, now: Date) {
       };
     }
     case 'week': {
-      const dayOfWeek = now.getDay();
-      const startOfWeek = new Date(year, month, date - dayOfWeek).getTime();
+      const startOfWeek = Date.UTC(year, month, date - dayOfWeek);
       const endOfWeek = startOfWeek + 7 * MS_PER_DAY;
       const total = endOfWeek - startOfWeek;
-      const elapsed = now.getTime() - startOfWeek;
+      const elapsed = localMs - startOfWeek;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       return {
@@ -159,13 +228,14 @@ function computeUnitData(unitId: string, now: Date) {
         pct,
         elapsed: formatMsDuration(elapsed),
         remaining: formatMsDuration(remaining),
-        period: `Current Week (${now.toLocaleDateString('en-US', { weekday: 'long' })})`,
+        period: `Current Week (${WEEKDAY_NAMES[dayOfWeek]})`,
       };
     }
     case 'moon': {
       const synodicMonth = 29.53058867 * MS_PER_DAY;
       const knownNewMoon = new Date('2000-01-06T18:14:00Z').getTime();
-      const elapsed = (now.getTime() - knownNewMoon) % synodicMonth;
+      let elapsed = (timestampMs - knownNewMoon) % synodicMonth;
+      if (elapsed < 0) elapsed += synodicMonth;
       const remaining = synodicMonth - elapsed;
       const pct = (elapsed / synodicMonth) * 100;
       let phase = "New Moon";
@@ -187,10 +257,10 @@ function computeUnitData(unitId: string, now: Date) {
       };
     }
     case 'month': {
-      const startOfMonth = new Date(year, month, 1).getTime();
-      const endOfMonth = new Date(year, month + 1, 1).getTime();
+      const startOfMonth = Date.UTC(year, month, 1);
+      const endOfMonth = Date.UTC(year, month + 1, 1);
       const total = endOfMonth - startOfMonth;
-      const elapsed = now.getTime() - startOfMonth;
+      const elapsed = localMs - startOfMonth;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       return {
@@ -200,15 +270,15 @@ function computeUnitData(unitId: string, now: Date) {
         pct,
         elapsed: formatMsDuration(elapsed),
         remaining: formatMsDuration(remaining),
-        period: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        period: `${MONTH_NAMES[month]} ${year}`,
       };
     }
     case 'quarter': {
       const q = Math.floor(month / 3) + 1;
-      const startQuarter = new Date(year, (q - 1) * 3, 1).getTime();
-      const endQuarter = new Date(year, q * 3, 1).getTime();
+      const startQuarter = Date.UTC(year, (q - 1) * 3, 1);
+      const endQuarter = Date.UTC(year, q * 3, 1);
       const total = endQuarter - startQuarter;
-      const elapsed = now.getTime() - startQuarter;
+      const elapsed = localMs - startQuarter;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       return {
@@ -243,10 +313,10 @@ function computeUnitData(unitId: string, now: Date) {
         startMonth = 11; endMonth = 2;
         startYear = year - 1; endYear = year;
       }
-      const start = new Date(startYear, startMonth, 1).getTime();
-      const end = new Date(endYear, endMonth, 1).getTime();
+      const start = Date.UTC(startYear, startMonth, 1);
+      const end = Date.UTC(endYear, endMonth, 1);
       const total = end - start;
-      const elapsed = now.getTime() - start;
+      const elapsed = localMs - start;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       return {
@@ -260,10 +330,10 @@ function computeUnitData(unitId: string, now: Date) {
       };
     }
     case 'year': {
-      const startOfYear = new Date(year, 0, 1).getTime();
-      const endOfYear = new Date(year + 1, 0, 1).getTime();
+      const startOfYear = Date.UTC(year, 0, 1);
+      const endOfYear = Date.UTC(year + 1, 0, 1);
       const total = endOfYear - startOfYear;
-      const elapsed = now.getTime() - startOfYear;
+      const elapsed = localMs - startOfYear;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       const dayOfYear = Math.floor(elapsed / MS_PER_DAY) + 1;
@@ -280,10 +350,10 @@ function computeUnitData(unitId: string, now: Date) {
     }
     case 'decade': {
       const startDecadeYear = Math.floor(year / 10) * 10;
-      const start = new Date(startDecadeYear, 0, 1).getTime();
-      const end = new Date(startDecadeYear + 10, 0, 1).getTime();
+      const start = Date.UTC(startDecadeYear, 0, 1);
+      const end = Date.UTC(startDecadeYear + 10, 0, 1);
       const total = end - start;
-      const elapsed = now.getTime() - start;
+      const elapsed = localMs - start;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       return {
@@ -298,10 +368,10 @@ function computeUnitData(unitId: string, now: Date) {
     }
     case 'century': {
       const centuryStartYear = Math.floor(year / 100) * 100;
-      const start = new Date(centuryStartYear, 0, 1).getTime();
-      const end = new Date(centuryStartYear + 100, 0, 1).getTime();
+      const start = Date.UTC(centuryStartYear, 0, 1);
+      const end = Date.UTC(centuryStartYear + 100, 0, 1);
       const total = end - start;
-      const elapsed = now.getTime() - start;
+      const elapsed = localMs - start;
       const remaining = total - elapsed;
       const pct = (elapsed / total) * 100;
       const centuryNum = Math.floor(year / 100) + 1;
@@ -316,9 +386,9 @@ function computeUnitData(unitId: string, now: Date) {
       };
     }
     case 'life': {
-      const birth = new Date('1990-01-01').getTime();
+      const birth = Date.UTC(1990, 0, 1);
       const lifespan = 72 * 365.25 * MS_PER_DAY;
-      const elapsed = now.getTime() - birth;
+      const elapsed = localMs - birth;
       const remaining = lifespan - elapsed;
       const pct = Math.max(0, Math.min(100, (elapsed / lifespan) * 100));
       return {
@@ -340,25 +410,42 @@ export default async function handler(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const item = searchParams.get('item') || searchParams.get('unit') || searchParams.get('card');
-    const tab = searchParams.get('tab');
-    const now = new Date();
 
-    const dateFormatted = now.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-    const timeFormatted = now.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
+    // Parse timezone offset (tz, offset, tzOffset)
+    const tzParam = searchParams.get('tz') || searchParams.get('offset') || searchParams.get('tzOffset');
+    const offsetMinutes = parseUtcOffset(tzParam);
+    const tzLabel = formatTzLabel(offsetMinutes);
+
+    // Parse timestamp (t, ts, time) for cache-busting & exact time snapshot
+    const tParam = searchParams.get('t') || searchParams.get('ts') || searchParams.get('time');
+    let timestampMs = Date.now();
+    if (tParam) {
+      const parsedNum = Number(tParam);
+      if (!isNaN(parsedNum) && parsedNum > 1000000000) {
+        timestampMs = parsedNum < 10000000000 ? parsedNum * 1000 : parsedNum;
+      } else {
+        const parsedDate = new Date(tParam).getTime();
+        if (!isNaN(parsedDate)) timestampMs = parsedDate;
+      }
+    }
+
+    const localMs = timestampMs + offsetMinutes * 60 * 1000;
+    const localDate = new Date(localMs);
+
+    const year = localDate.getUTCFullYear();
+    const month = localDate.getUTCMonth();
+    const date = localDate.getUTCDate();
+    const dayOfWeek = localDate.getUTCDay();
+    const hours = localDate.getUTCHours();
+    const minutes = localDate.getUTCMinutes();
+    const seconds = localDate.getUTCSeconds();
+
+    const dateFormatted = `${WEEKDAY_SHORT[dayOfWeek]}, ${MONTH_SHORT[month]} ${date}, ${year}`;
+    const timeFormatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
     // 1. SPECIFIC TIME UNIT OPEN GRAPH CARD (e.g. ?item=year, ?item=day, ?item=month, etc.)
     if (item) {
-      const unitData = computeUnitData(item, now);
+      const unitData = computeUnitData(item, timestampMs, offsetMinutes);
 
       if (unitData) {
         const pctFormatted = unitData.pct.toFixed(2);
@@ -465,7 +552,7 @@ export default async function handler(req: Request) {
                     }}
                   >
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
-                    {timeFormatted} UTC
+                    {timeFormatted} ({tzLabel})
                   </div>
                 </div>
               </div>
@@ -585,7 +672,7 @@ export default async function handler(req: Request) {
                   color: '#64748b',
                 }}
               >
-                <span>{dateFormatted} • Live Precision Calculation</span>
+                <span>{dateFormatted} ({tzLabel}) • Live Precision Calculation</span>
                 <span style={{ fontWeight: 600, color: '#38bdf8' }}>Visualize time progress in real-time</span>
               </div>
             </div>
@@ -593,18 +680,23 @@ export default async function handler(req: Request) {
           {
             width: 1200,
             height: 630,
+            headers: {
+              'Cache-Control': tParam
+                ? 'public, max-age=31536000, immutable'
+                : 'public, max-age=0, s-maxage=30, stale-while-revalidate=60',
+            },
           }
         );
       }
     }
 
     // 2. DEFAULT OVERVIEW OPEN GRAPH IMAGE (Comprehensive multi-unit dashboard)
-    const yearData = computeUnitData('year', now)!;
-    const monthData = computeUnitData('month', now)!;
-    const weekData = computeUnitData('week', now)!;
-    const dayData = computeUnitData('day', now)!;
-    const hourData = computeUnitData('hour', now)!;
-    const decadeData = computeUnitData('decade', now)!;
+    const yearData = computeUnitData('year', timestampMs, offsetMinutes)!;
+    const monthData = computeUnitData('month', timestampMs, offsetMinutes)!;
+    const weekData = computeUnitData('week', timestampMs, offsetMinutes)!;
+    const dayData = computeUnitData('day', timestampMs, offsetMinutes)!;
+    const hourData = computeUnitData('hour', timestampMs, offsetMinutes)!;
+    const decadeData = computeUnitData('decade', timestampMs, offsetMinutes)!;
 
     const cards = [
       { label: 'Year', data: yearData, color: '#f43f5e' },
@@ -694,7 +786,7 @@ export default async function handler(req: Request) {
                 }}
               >
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
-                {dateFormatted} • {timeFormatted} UTC
+                {dateFormatted} • {timeFormatted} ({tzLabel})
               </div>
             </div>
           </div>
@@ -803,6 +895,11 @@ export default async function handler(req: Request) {
       {
         width: 1200,
         height: 630,
+        headers: {
+          'Cache-Control': tParam
+            ? 'public, max-age=31536000, immutable'
+            : 'public, max-age=0, s-maxage=30, stale-while-revalidate=60',
+        },
       }
     );
   } catch (e: any) {

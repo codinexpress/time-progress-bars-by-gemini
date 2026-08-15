@@ -14,7 +14,7 @@ import { ActiveTab } from './types';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useFeedback } from './hooks/useFeedback';
 import { getUrlParam, setUrlParam } from './utils/urlUtils';
-import { getOgImageUrl } from './utils/ogUtils';
+import { getOgImageUrl, getUserTimezoneOffset, formatUtcOffsetString } from './utils/ogUtils';
 
 const App: React.FC = () => {
   const { 
@@ -80,11 +80,16 @@ const App: React.FC = () => {
 
     // Update dynamic OG tags in DOM
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const tzParam = getUrlParam('tz') || formatUtcOffsetString(getUserTimezoneOffset());
+    const tParam = getUrlParam('t') || null;
+
     const ogImgUrl = getOgImageUrl({
       item: matchedConfig?.id || null,
       tab: activeTab !== 'visualizations' ? activeTab : null,
       mode: settings.visualizationMode,
       theme: settings.theme,
+      tz: tzParam,
+      t: tParam,
       origin: origin,
     });
 

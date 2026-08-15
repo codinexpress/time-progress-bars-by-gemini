@@ -14,7 +14,7 @@ import {
   LinkedInIcon,
   RedditIcon
 } from './Icons';
-import { getOgImageUrl, getSocialShareLinks } from '../utils/ogUtils';
+import { getOgImageUrl, getSocialShareLinks, getUserTimezoneOffset, formatUtcOffsetString, formatUtcOffsetLabel } from '../utils/ogUtils';
 
 interface ShareModalProps {
   config?: ProgressItemConfig | null;
@@ -30,6 +30,8 @@ const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
 }) => {
   const [copied, setCopied] = useState(false);
+  // Snapshot share creation timestamp once per modal opening
+  const [shareTimestamp] = useState<number>(() => Date.now());
 
   // Close on Escape key press
   useEffect(() => {
@@ -48,19 +50,29 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
 
-  // Construct canonical shareable page link
+  // Get user local timezone offset
+  const offsetMinutes = getUserTimezoneOffset();
+  const tzOffsetString = formatUtcOffsetString(offsetMinutes);
+  const tzLabel = formatUtcOffsetLabel(offsetMinutes);
+
+  // Construct canonical shareable page link with timezone offset and cache-busting timestamp
   const deepLinkParams = new URLSearchParams();
   if (config) {
     deepLinkParams.set('item', config.id);
   }
+  deepLinkParams.set('tz', tzOffsetString);
+  deepLinkParams.set('t', String(shareTimestamp));
+
   const queryString = deepLinkParams.toString();
   const shareableUrl = `${origin}${currentPath}${queryString ? `?${queryString}` : ''}`;
 
-  // Corresponding Open Graph image preview URL
+  // Corresponding Open Graph image preview URL matching the exact parameters
   const ogImgUrl = getOgImageUrl({
     item: config?.id || null,
     mode: settings.visualizationMode,
     theme: settings.theme,
+    tz: tzOffsetString,
+    t: shareTimestamp,
   });
 
   const shareTitle = config 
@@ -205,8 +217,12 @@ const ShareModal: React.FC<ShareModalProps> = ({
                 )}
               </button>
             </div>
+            <div className="flex items-center justify-between mt-2 text-[11px] text-slate-400">
+              <span>Timezone: <strong className="text-slate-300 font-mono">{tzLabel}</strong> (auto-detected)</span>
+              <span>Cache Busting: <strong className="text-slate-300 font-mono">Active</strong></span>
+            </div>
             <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-              When you share this link, platforms will automatically load and display the live preview card shown above.
+              When you share this link, platforms will automatically load and display the live preview card formatted for your timezone ({tzLabel}).
             </p>
           </div>
 
