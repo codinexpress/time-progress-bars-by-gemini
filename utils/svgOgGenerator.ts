@@ -1,12 +1,53 @@
 // SVG Open Graph Generator for dev server fallback and client preview export
 import { parseUtcOffset, formatUtcOffsetLabel } from './ogUtils';
 
+export function svgToDataUrl(svgString: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+}
+
+export async function svgToPngBlob(svgString: string, width = 1200, height = 630): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas 2D context unavailable'));
+        return;
+      }
+      // Fill base background
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to generate PNG Blob'));
+      }, 'image/png');
+    };
+
+    img.onerror = (err) => {
+      URL.revokeObjectURL(url);
+      reject(err);
+    };
+
+    img.src = url;
+  });
+}
+
 export function generateSvgOgImage(params: {
   item?: string | null;
   tab?: string | null;
   tz?: string | number | null;
   t?: number | string | null;
   v?: string | null;
+  theme?: string | null;
+  birthDate?: string | null;
 }): string {
   const offsetMinutes = parseUtcOffset(params.tz);
   const tzLabel = formatUtcOffsetLabel(offsetMinutes);
@@ -22,6 +63,7 @@ export function generateSvgOgImage(params: {
   const hours = localDate.getUTCHours();
   const minutes = localDate.getUTCMinutes();
   const seconds = localDate.getUTCSeconds();
+  const millis = localDate.getUTCMilliseconds();
 
   const MS_PER_SECOND = 1000;
   const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -42,40 +84,100 @@ export function generateSvgOgImage(params: {
   // Helper for single unit
   const computeUnit = (unitId: string) => {
     switch (unitId) {
-      case 'year': {
-        const startOfYear = new Date(year, 0, 1).getTime();
-        const endOfYear = new Date(year + 1, 0, 1).getTime();
-        const total = endOfYear - startOfYear;
-        const elapsed = localMs - startOfYear;
-        const remaining = total - elapsed;
-        const pct = (elapsed / total) * 100;
-        const dayOfYear = Math.floor(elapsed / MS_PER_DAY) + 1;
-        const totalDays = Math.round(total / MS_PER_DAY);
+      case 'second': {
+        const pct = (millis / 1000) * 100;
         return {
-          label: `Year ${year} Progress`,
-          section: 'Macro Scale',
-          color: '#f43f5e',
+          label: 'Second Progress',
+          section: 'Micro Scale',
+          color: '#14b8a6',
           pct,
-          elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          period: `Day ${dayOfYear} of ${totalDays} in ${year}`,
+          elapsed: `${millis}ms`,
+          remaining: `${1000 - millis}ms`,
+          period: `Second ${seconds}`,
         };
       }
-      case 'month': {
-        const start = new Date(year, month, 1).getTime();
-        const end = new Date(year, month + 1, 1).getTime();
-        const total = end - start;
+      case 'minute': {
+        const elapsed = seconds * MS_PER_SECOND + millis;
+        const total = MS_PER_MINUTE;
+        const remaining = total - elapsed;
+        const pct = (elapsed / total) * 100;
+        return {
+          label: 'Minute Progress',
+          section: 'Micro Scale',
+          color: '#06b6d4',
+          pct,
+          elapsed: `${seconds}s`,
+          remaining: `${59 - seconds}s`,
+          period: `Minute ${minutes}`,
+        };
+      }
+      case 'hour': {
+        const elapsed = minutes * MS_PER_MINUTE + seconds * MS_PER_SECOND + millis;
+        const total = MS_PER_HOUR;
+        const remaining = total - elapsed;
+        const pct = (elapsed / total) * 100;
+        return {
+          label: 'Hour Progress',
+          section: 'Micro Scale',
+          color: '#3b82f6',
+          pct,
+          elapsed: `${minutes}m ${seconds}s`,
+          remaining: `${59 - minutes}m ${59 - seconds}s`,
+          period: `Hour ${hours}:00 - ${(hours + 1) % 24}:00`,
+        };
+      }
+      case 'heartbeat': {
+        const beatCycle = 800; // 800ms per beat (~75bpm)
+        const elapsed = timestampMs % beatCycle;
+        const remaining = beatCycle - elapsed;
+        const pct = (elapsed / beatCycle) * 100;
+        return {
+          label: 'Heartbeat Cycle',
+          section: 'Micro Scale',
+          color: '#ef4444',
+          pct,
+          elapsed: `${elapsed}ms`,
+          remaining: `${remaining}ms`,
+          period: 'Systole / Diastole Rhythm (~75 BPM)',
+        };
+      }
+      case 'day': {
+        const start = new Date(year, month, date).getTime();
+        const total = MS_PER_DAY;
         const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
-          label: 'Month Progress',
-          section: 'Macro Scale',
-          color: '#8b5cf6',
+          label: 'Day Progress',
+          section: 'Cyclical Scale',
+          color: '#0ea5e9',
           pct,
-          elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          period: localDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+          elapsed: `${Math.floor(elapsed / MS_PER_HOUR)}h ${Math.floor((elapsed % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
+          remaining: `${Math.floor(remaining / MS_PER_HOUR)}h ${Math.floor((remaining % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
+          period: `Today: ${localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`,
+        };
+      }
+      case 'daylight': {
+        const startOfYear = new Date(year, 0, 1).getTime();
+        const dayOfYear = Math.floor((localMs - startOfYear) / MS_PER_DAY);
+        const sunlightHours = 12 + 3 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 80));
+        const sunriseHour = 12 - sunlightHours / 2;
+        const sunsetHour = 12 + sunlightHours / 2;
+        const currentHourDecimal = hours + minutes / 60;
+        const totalMs = sunlightHours * MS_PER_HOUR;
+        let elapsedMs = 0;
+        if (currentHourDecimal >= sunsetHour) elapsedMs = totalMs;
+        else if (currentHourDecimal > sunriseHour) elapsedMs = (currentHourDecimal - sunriseHour) * MS_PER_HOUR;
+        const remainingMs = Math.max(0, totalMs - elapsedMs);
+        const pct = (elapsedMs / totalMs) * 100;
+        return {
+          label: 'Daylight Progress',
+          section: 'Cyclical Scale',
+          color: '#f59e0b',
+          pct,
+          elapsed: `${Math.floor(elapsedMs / MS_PER_HOUR)}h ${Math.floor((elapsedMs % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
+          remaining: `${Math.floor(remainingMs / MS_PER_HOUR)}h ${Math.floor((remainingMs % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
+          period: currentHourDecimal > sunsetHour || currentHourDecimal < sunriseHour ? 'Night Period' : 'Solar Daylight Window',
         };
       }
       case 'week': {
@@ -95,35 +197,92 @@ export function generateSvgOgImage(params: {
           period: `Current Week (${localDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })})`,
         };
       }
-      case 'day': {
-        const start = new Date(year, month, date).getTime();
-        const total = MS_PER_DAY;
+      case 'moon': {
+        const knownNewMoon = new Date('2000-01-06T18:14:00Z').getTime();
+        const synodicMonth = 29.53058867 * MS_PER_DAY;
+        const diff = localMs - knownNewMoon;
+        const currentCyclePos = (diff % synodicMonth + synodicMonth) % synodicMonth;
+        const pct = (currentCyclePos / synodicMonth) * 100;
+        const daysIntoCycle = (currentCyclePos / MS_PER_DAY).toFixed(1);
+        return {
+          label: 'Moon Phase Cycle',
+          section: 'Cyclical Scale',
+          color: '#94a3b8',
+          pct,
+          elapsed: `${daysIntoCycle} days`,
+          remaining: `${(29.53 - parseFloat(daysIntoCycle)).toFixed(1)} days`,
+          period: `Lunation Cycle (Day ${daysIntoCycle} of 29.5)`,
+        };
+      }
+      case 'month': {
+        const start = new Date(year, month, 1).getTime();
+        const end = new Date(year, month + 1, 1).getTime();
+        const total = end - start;
         const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
-          label: 'Day Progress',
-          section: 'Cyclical Scale',
-          color: '#0ea5e9',
+          label: 'Month Progress',
+          section: 'Macro Scale',
+          color: '#8b5cf6',
           pct,
-          elapsed: `${Math.floor(elapsed / MS_PER_HOUR)}h ${Math.floor((elapsed % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
-          remaining: `${Math.floor(remaining / MS_PER_HOUR)}h ${Math.floor((remaining % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
-          period: `Today: ${localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`,
+          elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
+          remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
+          period: localDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
         };
       }
-      case 'hour': {
-        const elapsed = minutes * MS_PER_MINUTE + seconds * 1000;
-        const total = MS_PER_HOUR;
+      case 'quarter': {
+        const q = Math.floor(month / 3) + 1;
+        const start = new Date(year, (q - 1) * 3, 1).getTime();
+        const end = new Date(year, q * 3, 1).getTime();
+        const total = end - start;
+        const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
-          label: 'Hour Progress',
-          section: 'Micro Scale',
-          color: '#3b82f6',
+          label: `Q${q} ${year} Quarter`,
+          section: 'Macro Scale',
+          color: '#f97316',
           pct,
-          elapsed: `${minutes}m ${seconds}s`,
-          remaining: `${59 - minutes}m ${59 - seconds}s`,
-          period: `Hour ${hours}:00 - ${hours + 1}:00`,
+          elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
+          remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
+          period: `Quarter ${q} (${year})`,
+        };
+      }
+      case 'season': {
+        const seasonIdx = Math.floor((month + 1) % 12 / 3);
+        const seasonNames = ['Winter', 'Spring', 'Summer', 'Autumn'];
+        const seasonColors = ['#38bdf8', '#4ade80', '#fbbf24', '#f97316'];
+        const name = seasonNames[seasonIdx];
+        const color = seasonColors[seasonIdx];
+        const pct = ((month % 3 * 30 + date) / 91.25) * 100;
+        return {
+          label: `${name} Season`,
+          section: 'Macro Scale',
+          color,
+          pct: Math.min(100, pct),
+          elapsed: `${Math.floor((pct / 100) * 91.25)} days`,
+          remaining: `${Math.max(0, Math.floor((1 - pct / 100) * 91.25))} days`,
+          period: `${name} Season (${year})`,
+        };
+      }
+      case 'year': {
+        const startOfYear = new Date(year, 0, 1).getTime();
+        const endOfYear = new Date(year + 1, 0, 1).getTime();
+        const total = endOfYear - startOfYear;
+        const elapsed = localMs - startOfYear;
+        const remaining = total - elapsed;
+        const pct = (elapsed / total) * 100;
+        const dayOfYear = Math.floor(elapsed / MS_PER_DAY) + 1;
+        const totalDays = Math.round(total / MS_PER_DAY);
+        return {
+          label: `Year ${year} Progress`,
+          section: 'Macro Scale',
+          color: '#f43f5e',
+          pct,
+          elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
+          remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
+          period: `Day ${dayOfYear} of ${totalDays} in ${year}`,
         };
       }
       case 'decade': {
@@ -158,27 +317,26 @@ export function generateSvgOgImage(params: {
           section: 'Mega Scale',
           color: '#64748b',
           pct,
-          elapsed: `${Math.floor(elapsed / (MS_PER_DAY * 365))} years`,
-          remaining: `${Math.floor(remaining / (MS_PER_DAY * 365))} years`,
+          elapsed: `${Math.floor(elapsed / (MS_PER_DAY * 365.25))} years`,
+          remaining: `${Math.floor(remaining / (MS_PER_DAY * 365.25))} years`,
           period: `Century ${centuryStart} - ${centuryStart + 99}`,
         };
       }
-      case 'quarter': {
-        const q = Math.floor(month / 3) + 1;
-        const start = new Date(year, (q - 1) * 3, 1).getTime();
-        const end = new Date(year, q * 3, 1).getTime();
-        const total = end - start;
-        const elapsed = localMs - start;
-        const remaining = total - elapsed;
-        const pct = (elapsed / total) * 100;
+      case 'life': {
+        const birth = params.birthDate ? new Date(params.birthDate).getTime() : new Date(1990, 0, 1).getTime();
+        const lifespanMs = 80 * 365.25 * MS_PER_DAY; // 80 year baseline
+        const elapsed = localMs - birth;
+        const remaining = Math.max(0, lifespanMs - elapsed);
+        const pct = Math.max(0, Math.min(100, (elapsed / lifespanMs) * 100));
+        const ageYears = (elapsed / (MS_PER_DAY * 365.25)).toFixed(1);
         return {
-          label: `Q${q} ${year} Quarter`,
-          section: 'Macro Scale',
-          color: '#f97316',
+          label: 'Lifespan (80y Baseline)',
+          section: 'Mega Scale',
+          color: '#d946ef',
           pct,
-          elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          period: `Quarter ${q} (${year})`,
+          elapsed: `${ageYears} years`,
+          remaining: `${Math.max(0, 80 - parseFloat(ageYears)).toFixed(1)} years`,
+          period: `Life Progression (Age ${ageYears})`,
         };
       }
       default: {
@@ -334,7 +492,6 @@ export function generateSvgOgImage(params: {
     <!-- Cards Matrix -->
     ${cards.map(c => {
       const clampedPct = Math.max(0, Math.min(100, c.data.pct));
-      const barW = Math.round((clampedPct / 100) * 300);
       return `
         <g transform="translate(${c.x}, ${c.y})">
           <rect width="340" height="155" rx="16" fill="#0f172a" fill-opacity="0.9" stroke="rgba(255, 255, 255, 0.08)" stroke-width="1" />

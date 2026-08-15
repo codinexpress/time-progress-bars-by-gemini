@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ProgressItemConfig, AppSettings } from '../types';
 import { 
@@ -25,6 +25,11 @@ import {
   formatUtcOffsetLabel,
   generateCacheNonce
 } from '../utils/ogUtils';
+import { 
+  generateSvgOgImage, 
+  svgToDataUrl, 
+  svgToPngBlob 
+} from '../utils/svgOgGenerator';
 
 interface ShareModalProps {
   config?: ProgressItemConfig | null;
@@ -40,6 +45,8 @@ const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [imageCopied, setImageCopied] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [showDebuggers, setShowDebuggers] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
@@ -62,19 +69,36 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const handleRefreshSnapshot = useCallback(() => {
     setIsRefreshing(true);
     setShareNonce(generateCacheNonce());
-    setTimeout(() => setIsRefreshing(false), 400);
+    setTimeout(() => setIsRefreshing(false), 250);
   }, []);
+
+  // Compute Active Timezone Offset
+  const offsetMinutes = resolveTimezoneOffset(settings.timezone);
+  const tzOffsetString = formatUtcOffsetString(offsetMinutes);
+  const tzLabel = formatUtcOffsetLabel(offsetMinutes);
+  const tzDisplayName = getTimezoneDisplayName(settings.timezone);
+
+  // Pure Client-Side SVG Generation (Zero server dependencies, instantaneous rendering)
+  const clientSvgMarkup = useMemo(() => {
+    if (!isOpen) return '';
+    return generateSvgOgImage({
+      item: config?.id || null,
+      tz: tzOffsetString,
+      v: shareNonce,
+      theme: settings.theme,
+      birthDate: settings.birthDate,
+    });
+  }, [isOpen, config?.id, tzOffsetString, shareNonce, settings.theme, settings.birthDate]);
+
+  const clientPreviewDataUrl = useMemo(() => {
+    if (!clientSvgMarkup) return '';
+    return svgToDataUrl(clientSvgMarkup);
+  }, [clientSvgMarkup]);
 
   if (!isOpen) return null;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-
-  // Get active timezone offset based on settings
-  const offsetMinutes = resolveTimezoneOffset(settings.timezone);
-  const tzOffsetString = formatUtcOffsetString(offsetMinutes);
-  const tzLabel = formatUtcOffsetLabel(offsetMinutes);
-  const tzDisplayName = getTimezoneDisplayName(settings.timezone);
 
   // Construct canonical shareable page link with timezone offset and cache-busting nonce
   const deepLinkParams = new URLSearchParams();
@@ -87,7 +111,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const queryString = deepLinkParams.toString();
   const shareableUrl = `${origin}${currentPath}${queryString ? `?${queryString}` : ''}`;
 
-  // Corresponding Open Graph image preview URL matching the exact parameters
+  // Fallback / crawler Open Graph image URL
   const ogImgUrl = getOgImageUrl({
     item: config?.id || null,
     mode: settings.visualizationMode,
@@ -120,13 +144,64 @@ const ShareModal: React.FC<ShareModalProps> = ({
     hour12: false
   });
 
-  const handleCopy = async () => {
+  const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareableUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (e) {
-      console.error('Failed to copy', e);
+      console.error('Failed to copy link', e);
+    }
+  };
+
+  const handleCopyImage = async () => {
+    try {
+      if (typeof window === 'undefined' || !navigator.clipboard || !window.ClipboardItem) {
+        throw new Error('ClipboardItem API not supported');
+      }
+      const blob = await svgToPngBlob(clientSvgMarkup);
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      setImageCopied(true);
+      setTimeout(() => setImageCopied(false), 2500);
+    } catch (e) {
+      console.error('Failed to copy image to clipboard', e);
+    }
+  };
+
+  const handleDownloadPng = async () => {
+    try {
+      setIsDownloading(true);
+      const blob = await svgToPngBlob(clientSvgMarkup);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `timeflux-${config?.id || 'overview'}-${shareNonce}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to download PNG', e);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadSvg = () => {
+    try {
+      const blob = new Blob([clientSvgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `timeflux-${config?.id || 'overview'}-${shareNonce}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to download SVG', e);
     }
   };
 
@@ -166,7 +241,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                 {config ? `Share ${config.label}` : 'Share Time Flux'}
               </h3>
               <p className="text-xs text-slate-400">
-                Live Open Graph snapshot with instant cache-busting
+                Client-rendered Open Graph card with real-time preview
               </p>
             </div>
           </div>
@@ -192,16 +267,16 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-5">
-          {/* Live Open Graph Preview Box */}
+          {/* Live Open Graph Preview Box - 100% Client-Side Rendered */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <span>Social Card Preview</span>
+                <span>Card Preview</span>
                 <span className="text-[10px] font-mono text-slate-500 font-normal">
                   ({snapshotFormatted} • {tzLabel})
                 </span>
               </span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <button
                   onClick={handleRefreshSnapshot}
                   className="text-xs font-medium text-sky-400 hover:text-sky-300 flex items-center gap-1 transition-colors"
@@ -210,16 +285,6 @@ const ShareModal: React.FC<ShareModalProps> = ({
                   <RefreshIcon className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <span>Fresh Snapshot</span>
                 </button>
-                <a
-                  href={ogImgUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
-                  title="View full resolution image"
-                >
-                  <span>Full View</span>
-                  <ExternalLinkIcon className="w-3 h-3" />
-                </a>
               </div>
             </div>
             
@@ -227,15 +292,56 @@ const ShareModal: React.FC<ShareModalProps> = ({
             <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner group">
               <img
                 key={shareNonce}
-                src={ogImgUrl}
+                src={clientPreviewDataUrl}
                 alt={shareTitle}
-                className="w-full h-auto aspect-[1.91/1] object-cover transition-transform duration-300 group-hover:scale-[1.01]"
+                className="w-full h-auto aspect-[1.91/1] object-cover transition-transform duration-300 group-hover:scale-[1.005]"
                 loading="eager"
               />
               <div className="absolute top-2 right-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-mono font-medium text-emerald-400 border border-slate-700/60 flex items-center gap-1.5 shadow">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Live Snapshot {tzLabel}</span>
+                <span>Client Rendered ({tzLabel})</span>
               </div>
+            </div>
+
+            {/* Client-Side Export Actions Bar */}
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleDownloadPng}
+                  disabled={isDownloading}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  title="Export full resolution 1200x630 PNG"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
+                  <span>{isDownloading ? 'Rendering...' : 'Download PNG'}</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadSvg}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5"
+                  title="Export raw SVG vector"
+                >
+                  <span>Download SVG</span>
+                </button>
+              </div>
+
+              <button
+                onClick={handleCopyImage}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5"
+                title="Copy PNG image directly to clipboard"
+              >
+                {imageCopied ? (
+                  <>
+                    <CheckIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">Image Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <CopyIcon className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Copy Image</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
@@ -243,10 +349,10 @@ const ShareModal: React.FC<ShareModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Shareable Link
+                Shareable Deep-Link
               </label>
               <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded-full">
-                Cache-Bust: Active
+                Active Nonce: #{shareNonce}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -258,7 +364,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <button
-                onClick={handleCopy}
+                onClick={handleCopyLink}
                 className={`px-4 py-2.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all shrink-0 ${
                   copied
                     ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
@@ -279,12 +385,9 @@ const ShareModal: React.FC<ShareModalProps> = ({
               </button>
             </div>
             <div className="flex items-center justify-between mt-2 text-[11px] text-slate-400">
-              <span>Timezone: <strong className="text-slate-300 font-mono">{tzLabel}</strong></span>
-              <span>Nonce: <strong className="text-slate-300 font-mono">#{shareNonce}</strong></span>
+              <span>Timezone: <strong className="text-slate-300 font-mono">{tzLabel}</strong> ({tzDisplayName})</span>
+              <span>Mode: <strong className="text-slate-300 font-mono">100% Client Generated</strong></span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-              Every link contains a fresh timestamp and unique nonce, preventing CDN / social media platform caching.
-            </p>
           </div>
 
           {/* 1-Click Social Media Platforms */}
@@ -426,7 +529,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
         {/* Modal Footer */}
         <div className="px-5 py-3 border-t border-slate-800 bg-slate-900/80 flex justify-between items-center text-xs text-slate-400">
-          <span className="text-[11px]">Dynamic Open Graph cards powered by Time Flux</span>
+          <span className="text-[11px]">Instant client-side preview • Zero server dependency</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg transition-colors"
