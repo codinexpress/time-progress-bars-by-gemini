@@ -156,6 +156,15 @@ export function getAllUnitsOgData(date: Date = new Date(), weekStartDay: WeekSta
 }
 
 /**
+ * Generates high-entropy cache busting tokens (timestamp + unique short hex nonce)
+ */
+export function generateCacheBuster() {
+  const t = Date.now();
+  const v = Math.random().toString(36).substring(2, 8);
+  return { t, v };
+}
+
+/**
  * Builds the canonical or relative Open Graph image URL with timezone and cache-busting timestamp
  */
 export function getOgImageUrl(params: {
@@ -165,6 +174,7 @@ export function getOgImageUrl(params: {
   theme?: 'light' | 'dark';
   tz?: string | number | null;
   t?: number | string | null;
+  v?: string | null;
   origin?: string;
 }): string {
   const query = new URLSearchParams();
@@ -178,6 +188,9 @@ export function getOgImageUrl(params: {
   }
   if (params.t !== undefined && params.t !== null && params.t !== '') {
     query.set('t', String(params.t));
+  }
+  if (params.v !== undefined && params.v !== null && params.v !== '') {
+    query.set('v', String(params.v));
   }
 
   const queryString = query.toString();
@@ -209,5 +222,18 @@ export function getSocialShareLinks(params: {
     reddit: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`,
     whatsapp: `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`,
     telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+  };
+}
+
+/**
+ * Direct platform debugging/cache invalidation links
+ */
+export function getPlatformDebuggerLinks(url: string) {
+  const encodedUrl = encodeURIComponent(url);
+  return {
+    facebook: `https://developers.facebook.com/tools/debug/?q=${encodedUrl}`,
+    linkedin: `https://www.linkedin.com/post-inspector/inspect/${encodedUrl}`,
+    twitter: `https://cards-dev.twitter.com/validator`,
+    telegram: `https://t.me/WebpageBot`,
   };
 }

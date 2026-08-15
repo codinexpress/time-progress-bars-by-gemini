@@ -416,8 +416,10 @@ export default async function handler(req: Request) {
     const offsetMinutes = parseUtcOffset(tzParam);
     const tzLabel = formatTzLabel(offsetMinutes);
 
-    // Parse timestamp (t, ts, time) for cache-busting & exact time snapshot
+    // Parse timestamp (t, ts, time, v) for cache-busting & exact time snapshot
     const tParam = searchParams.get('t') || searchParams.get('ts') || searchParams.get('time');
+    const vParam = searchParams.get('v') || searchParams.get('nonce');
+    const isCacheBusted = Boolean(tParam || vParam);
     let timestampMs = Date.now();
     if (tParam) {
       const parsedNum = Number(tParam);
@@ -681,9 +683,11 @@ export default async function handler(req: Request) {
             width: 1200,
             height: 630,
             headers: {
-              'Cache-Control': tParam
+              'Cache-Control': isCacheBusted
                 ? 'public, max-age=31536000, immutable'
-                : 'public, max-age=0, s-maxage=30, stale-while-revalidate=60',
+                : 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+              'Pragma': isCacheBusted ? 'public' : 'no-cache',
+              'Expires': isCacheBusted ? new Date(Date.now() + 31536000000).toUTCString() : '0',
             },
           }
         );
@@ -896,9 +900,11 @@ export default async function handler(req: Request) {
         width: 1200,
         height: 630,
         headers: {
-          'Cache-Control': tParam
+          'Cache-Control': isCacheBusted
             ? 'public, max-age=31536000, immutable'
-            : 'public, max-age=0, s-maxage=30, stale-while-revalidate=60',
+            : 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+          'Pragma': isCacheBusted ? 'public' : 'no-cache',
+          'Expires': isCacheBusted ? new Date(Date.now() + 31536000000).toUTCString() : '0',
         },
       }
     );

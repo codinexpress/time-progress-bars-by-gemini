@@ -151,6 +151,10 @@ export default async function handler(req: Request) {
   const item = url.searchParams.get('item') || url.searchParams.get('unit');
   const mode = url.searchParams.get('mode') || '';
   const theme = url.searchParams.get('theme') || '';
+  const tz = url.searchParams.get('tz') || url.searchParams.get('offset') || url.searchParams.get('tzOffset');
+  const t = url.searchParams.get('t') || url.searchParams.get('ts') || url.searchParams.get('time') || String(Date.now());
+  const v = url.searchParams.get('v') || url.searchParams.get('nonce') || '';
+  const tab = url.searchParams.get('tab') || '';
 
   // Determine external Origin with protocol and host
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || url.host;
@@ -159,12 +163,17 @@ export default async function handler(req: Request) {
 
   const { title, description } = getTitleAndDesc(item, now);
 
-  // Construct absolute canonical URL and OG image URL
+  // Construct absolute canonical URL and OG image URL with full cache-busting and timezone context
   const canonicalUrl = `${origin}${url.pathname}${url.search}`;
   const ogParams = new URLSearchParams();
   if (item) ogParams.set('item', item);
   if (mode) ogParams.set('mode', mode);
   if (theme) ogParams.set('theme', theme);
+  if (tab) ogParams.set('tab', tab);
+  if (tz) ogParams.set('tz', tz);
+  if (t) ogParams.set('t', t);
+  if (v) ogParams.set('v', v);
+
   const ogParamString = ogParams.toString();
   const ogImageUrl = `${origin}/api/og${ogParamString ? `?${ogParamString}` : ''}`;
 
@@ -176,7 +185,7 @@ export default async function handler(req: Request) {
   <title>${title}</title>
   <meta name="description" content="${description}">
 
-  <!-- Open Graph / Facebook / WhatsApp / Discord / LinkedIn -->
+  <!-- Open Graph / Facebook / WhatsApp / Discord / LinkedIn / Telegram -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Time Flux">
   <meta property="og:title" content="${title}">
@@ -251,7 +260,9 @@ export default async function handler(req: Request) {
     status: 200,
     headers: {
       'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=120',
+      'cache-control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+      'pragma': 'no-cache',
+      'expires': '0',
       'x-robots-tag': 'all',
     },
   });

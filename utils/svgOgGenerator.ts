@@ -1,31 +1,50 @@
 // SVG Open Graph Generator for dev server fallback and client preview export
+import { parseUtcOffset, formatUtcOffsetLabel } from './ogUtils';
 
 export function generateSvgOgImage(params: {
   item?: string | null;
   tab?: string | null;
+  tz?: string | number | null;
+  t?: number | string | null;
+  v?: string | null;
 }): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const date = now.getDate();
+  const offsetMinutes = parseUtcOffset(params.tz);
+  const tzLabel = formatUtcOffsetLabel(offsetMinutes);
+
+  let timestampMs = Date.now();
+  if (params.t) {
+    const parsedNum = Number(params.t);
+    if (!isNaN(parsedNum) && parsedNum > 1000000000) {
+      timestampMs = parsedNum < 10000000000 ? parsedNum * 1000 : parsedNum;
+    } else {
+      const parsedDate = new Date(params.t).getTime();
+      if (!isNaN(parsedDate)) timestampMs = parsedDate;
+    }
+  }
+
+  const localMs = timestampMs + offsetMinutes * 60 * 1000;
+  const localDate = new Date(localMs);
+
+  const year = localDate.getUTCFullYear();
+  const month = localDate.getUTCMonth();
+  const date = localDate.getUTCDate();
+  const hours = localDate.getUTCHours();
+  const minutes = localDate.getUTCMinutes();
+  const seconds = localDate.getUTCSeconds();
 
   const MS_PER_SECOND = 1000;
   const MS_PER_MINUTE = 60 * MS_PER_SECOND;
   const MS_PER_HOUR = 60 * MS_PER_MINUTE;
   const MS_PER_DAY = 24 * MS_PER_HOUR;
 
-  const dateFormatted = now.toLocaleDateString('en-US', {
+  const dateFormatted = localDate.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'UTC',
   });
-  const timeFormatted = now.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
+  const timeFormatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
   const item = params.item?.toLowerCase();
 
@@ -36,7 +55,7 @@ export function generateSvgOgImage(params: {
         const startOfYear = new Date(year, 0, 1).getTime();
         const endOfYear = new Date(year + 1, 0, 1).getTime();
         const total = endOfYear - startOfYear;
-        const elapsed = now.getTime() - startOfYear;
+        const elapsed = localMs - startOfYear;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         const dayOfYear = Math.floor(elapsed / MS_PER_DAY) + 1;
@@ -55,7 +74,7 @@ export function generateSvgOgImage(params: {
         const start = new Date(year, month, 1).getTime();
         const end = new Date(year, month + 1, 1).getTime();
         const total = end - start;
-        const elapsed = now.getTime() - start;
+        const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
@@ -65,14 +84,14 @@ export function generateSvgOgImage(params: {
           pct,
           elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
           remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          period: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          period: localDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
         };
       }
       case 'week': {
-        const dayOfWeek = now.getDay();
+        const dayOfWeek = localDate.getUTCDay();
         const start = new Date(year, month, date - dayOfWeek).getTime();
         const total = 7 * MS_PER_DAY;
-        const elapsed = now.getTime() - start;
+        const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
@@ -82,13 +101,13 @@ export function generateSvgOgImage(params: {
           pct,
           elapsed: `${Math.floor(elapsed / MS_PER_DAY)}d ${Math.floor((elapsed % MS_PER_DAY) / MS_PER_HOUR)}h`,
           remaining: `${Math.floor(remaining / MS_PER_DAY)}d ${Math.floor((remaining % MS_PER_DAY) / MS_PER_HOUR)}h`,
-          period: `Current Week (${now.toLocaleDateString('en-US', { weekday: 'long' })})`,
+          period: `Current Week (${localDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })})`,
         };
       }
       case 'day': {
         const start = new Date(year, month, date).getTime();
         const total = MS_PER_DAY;
-        const elapsed = now.getTime() - start;
+        const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
@@ -98,11 +117,11 @@ export function generateSvgOgImage(params: {
           pct,
           elapsed: `${Math.floor(elapsed / MS_PER_HOUR)}h ${Math.floor((elapsed % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
           remaining: `${Math.floor(remaining / MS_PER_HOUR)}h ${Math.floor((remaining % MS_PER_HOUR) / MS_PER_MINUTE)}m`,
-          period: `Today: ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          period: `Today: ${localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`,
         };
       }
       case 'hour': {
-        const elapsed = now.getMinutes() * MS_PER_MINUTE + now.getSeconds() * 1000;
+        const elapsed = minutes * MS_PER_MINUTE + seconds * 1000;
         const total = MS_PER_HOUR;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
@@ -111,9 +130,9 @@ export function generateSvgOgImage(params: {
           section: 'Micro Scale',
           color: '#3b82f6',
           pct,
-          elapsed: `${now.getMinutes()}m ${now.getSeconds()}s`,
-          remaining: `${59 - now.getMinutes()}m ${59 - now.getSeconds()}s`,
-          period: `Hour ${now.getHours()}:00 - ${now.getHours() + 1}:00`,
+          elapsed: `${minutes}m ${seconds}s`,
+          remaining: `${59 - minutes}m ${59 - seconds}s`,
+          period: `Hour ${hours}:00 - ${hours + 1}:00`,
         };
       }
       case 'decade': {
@@ -121,7 +140,7 @@ export function generateSvgOgImage(params: {
         const start = new Date(startDecadeYear, 0, 1).getTime();
         const end = new Date(startDecadeYear + 10, 0, 1).getTime();
         const total = end - start;
-        const elapsed = now.getTime() - start;
+        const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
@@ -139,7 +158,7 @@ export function generateSvgOgImage(params: {
         const start = new Date(centuryStart, 0, 1).getTime();
         const end = new Date(centuryStart + 100, 0, 1).getTime();
         const total = end - start;
-        const elapsed = now.getTime() - start;
+        const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         const centuryNum = Math.floor(year / 100) + 1;
@@ -158,7 +177,7 @@ export function generateSvgOgImage(params: {
         const start = new Date(year, (q - 1) * 3, 1).getTime();
         const end = new Date(year, q * 3, 1).getTime();
         const total = end - start;
-        const elapsed = now.getTime() - start;
+        const elapsed = localMs - start;
         const remaining = total - elapsed;
         const pct = (elapsed / total) * 100;
         return {
@@ -224,9 +243,9 @@ export function generateSvgOgImage(params: {
         <rect x="0" y="0" width="130" height="36" rx="18" fill="${unit.color}22" stroke="${unit.color}66" stroke-width="1" />
         <text x="65" y="23" fill="${unit.color}" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="1">${unit.section.toUpperCase()}</text>
         
-        <rect x="142" y="0" width="138" height="36" rx="18" fill="#0f172a" stroke="#1e293b" stroke-width="1" />
+        <rect x="142" y="0" width="168" height="36" rx="18" fill="#0f172a" stroke="#1e293b" stroke-width="1" />
         <circle cx="158" cy="18" r="4" fill="#22c55e" />
-        <text x="170" y="23" fill="#cbd5e1" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">${timeFormatted} UTC</text>
+        <text x="170" y="23" fill="#cbd5e1" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">${timeFormatted} (${tzLabel})</text>
       </g>
 
       <!-- Center Card Container -->
@@ -315,10 +334,10 @@ export function generateSvgOgImage(params: {
       <text x="66" y="45" fill="#38bdf8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" letter-spacing="2">REAL-TIME EXISTENCE PROGRESS TRACKER</text>
     </g>
 
-    <g transform="translate(860, 68)">
-      <rect x="0" y="0" width="280" height="40" rx="20" fill="#0f172a" stroke="#1e293b" stroke-width="1" />
+    <g transform="translate(840, 68)">
+      <rect x="0" y="0" width="300" height="40" rx="20" fill="#0f172a" stroke="#1e293b" stroke-width="1" />
       <circle cx="20" cy="20" r="4" fill="#22c55e" />
-      <text x="34" y="25" fill="#cbd5e1" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">${dateFormatted} • ${timeFormatted} UTC</text>
+      <text x="34" y="25" fill="#cbd5e1" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">${dateFormatted} • ${timeFormatted} (${tzLabel})</text>
     </g>
 
     <!-- Cards Matrix -->
