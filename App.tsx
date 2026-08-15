@@ -79,11 +79,13 @@ const App: React.FC = () => {
     document.title = pageTitle;
 
     // Update dynamic OG tags in DOM
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const ogImgUrl = getOgImageUrl({
       item: matchedConfig?.id || null,
       tab: activeTab !== 'visualizations' ? activeTab : null,
       mode: settings.visualizationMode,
       theme: settings.theme,
+      origin: origin,
     });
 
     const ogTitleEl = document.querySelector('meta[property="og:title"]');
@@ -94,6 +96,16 @@ const App: React.FC = () => {
 
     const ogImgEl = document.querySelector('meta[property="og:image"]');
     if (ogImgEl) ogImgEl.setAttribute('content', ogImgUrl);
+
+    const ogUrlEl = document.querySelector('meta[property="og:url"]');
+    if (ogUrlEl) {
+      ogUrlEl.setAttribute('content', window.location.href);
+    } else {
+      const newOgUrl = document.createElement('meta');
+      newOgUrl.setAttribute('property', 'og:url');
+      newOgUrl.setAttribute('content', window.location.href);
+      document.head.appendChild(newOgUrl);
+    }
 
     const twitterTitleEl = document.querySelector('meta[name="twitter:title"]');
     if (twitterTitleEl) twitterTitleEl.setAttribute('content', pageTitle);

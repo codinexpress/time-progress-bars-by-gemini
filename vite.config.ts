@@ -30,6 +30,30 @@ function ogDevPlugin(): Plugin {
         next();
       });
     },
+    transformIndexHtml(html, ctx) {
+      if (!ctx || !ctx.originalUrl) return html;
+      try {
+        const parsedUrl = new URL(ctx.originalUrl, 'http://localhost:3000');
+        const item = parsedUrl.searchParams.get('item') || parsedUrl.searchParams.get('unit');
+        if (!item) return html;
+
+        const formatted = item.charAt(0).toUpperCase() + item.slice(1);
+        const title = `${formatted} Progress - Time Flux`;
+        const description = `Live real-time progress tracker for ${formatted} on Time Flux.`;
+        const ogImage = `/api/og?item=${encodeURIComponent(item)}`;
+
+        return html
+          .replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`)
+          .replace(/<meta\s+property=["']og:title["']\s+content=["'].*?["']\s*\/?>/gi, `<meta property="og:title" content="${title}">`)
+          .replace(/<meta\s+property=["']og:description["']\s+content=["'].*?["']\s*\/?>/gi, `<meta property="og:description" content="${description}">`)
+          .replace(/<meta\s+property=["']og:image["']\s+content=["'].*?["']\s*\/?>/gi, `<meta property="og:image" content="${ogImage}">`)
+          .replace(/<meta\s+name=["']twitter:title["']\s+content=["'].*?["']\s*\/?>/gi, `<meta name="twitter:title" content="${title}">`)
+          .replace(/<meta\s+name=["']twitter:description["']\s+content=["'].*?["']\s*\/?>/gi, `<meta name="twitter:description" content="${description}">`)
+          .replace(/<meta\s+name=["']twitter:image["']\s+content=["'].*?["']\s*\/?>/gi, `<meta name="twitter:image" content="${ogImage}">`);
+      } catch (e) {
+        return html;
+      }
+    }
   };
 }
 
