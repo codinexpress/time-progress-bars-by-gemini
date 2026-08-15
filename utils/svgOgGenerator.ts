@@ -11,17 +11,8 @@ export function generateSvgOgImage(params: {
   const offsetMinutes = parseUtcOffset(params.tz);
   const tzLabel = formatUtcOffsetLabel(offsetMinutes);
 
-  let timestampMs = Date.now();
-  if (params.t) {
-    const parsedNum = Number(params.t);
-    if (!isNaN(parsedNum) && parsedNum > 1000000000) {
-      timestampMs = parsedNum < 10000000000 ? parsedNum * 1000 : parsedNum;
-    } else {
-      const parsedDate = new Date(params.t).getTime();
-      if (!isNaN(parsedDate)) timestampMs = parsedDate;
-    }
-  }
-
+  // Live timestamp, timezone offset only
+  const timestampMs = Date.now();
   const localMs = timestampMs + offsetMinutes * 60 * 1000;
   const localDate = new Date(localMs);
 

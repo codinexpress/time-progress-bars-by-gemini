@@ -13,6 +13,7 @@ const defaultAppSettings: AppSettings = {
   globalDecimalPlaces: 2,
   decimalPlaceOverrides: {},
   birthDate: '1990-01-01',
+  timezone: 'auto',
 };
 
 const isValidMode = (mode: string | null): mode is VisualizationMode => {
@@ -45,6 +46,7 @@ export const useAppSettings = () => {
     customColors: storedSettings?.customColors || defaultAppSettings.customColors,
     decimalPlaceOverrides: storedSettings?.decimalPlaceOverrides || defaultAppSettings.decimalPlaceOverrides,
     birthDate: storedSettings?.birthDate || defaultAppSettings.birthDate,
+    timezone: storedSettings?.timezone || defaultAppSettings.timezone,
   };
 
   // Sync URL -> State on mount (Deep linking priority)

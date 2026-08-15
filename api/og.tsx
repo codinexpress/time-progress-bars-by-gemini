@@ -416,21 +416,9 @@ export default async function handler(req: Request) {
     const offsetMinutes = parseUtcOffset(tzParam);
     const tzLabel = formatTzLabel(offsetMinutes);
 
-    // Parse timestamp (t, ts, time, v) for cache-busting & exact time snapshot
-    const tParam = searchParams.get('t') || searchParams.get('ts') || searchParams.get('time');
-    const vParam = searchParams.get('v') || searchParams.get('nonce');
-    const isCacheBusted = Boolean(tParam || vParam);
-    let timestampMs = Date.now();
-    if (tParam) {
-      const parsedNum = Number(tParam);
-      if (!isNaN(parsedNum) && parsedNum > 1000000000) {
-        timestampMs = parsedNum < 10000000000 ? parsedNum * 1000 : parsedNum;
-      } else {
-        const parsedDate = new Date(tParam).getTime();
-        if (!isNaN(parsedDate)) timestampMs = parsedDate;
-      }
-    }
-
+    // Clock time is strictly live current time, shifted solely by timezone offset
+    // Parameters like 'v' or 't' serve purely for URL uniqueness and CDN cache-busting
+    const timestampMs = Date.now();
     const localMs = timestampMs + offsetMinutes * 60 * 1000;
     const localDate = new Date(localMs);
 
@@ -683,11 +671,9 @@ export default async function handler(req: Request) {
             width: 1200,
             height: 630,
             headers: {
-              'Cache-Control': isCacheBusted
-                ? 'public, max-age=31536000, immutable'
-                : 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
-              'Pragma': isCacheBusted ? 'public' : 'no-cache',
-              'Expires': isCacheBusted ? new Date(Date.now() + 31536000000).toUTCString() : '0',
+              'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+              'Pragma': 'no-cache',
+              'Expires': '0',
             },
           }
         );
@@ -900,11 +886,9 @@ export default async function handler(req: Request) {
         width: 1200,
         height: 630,
         headers: {
-          'Cache-Control': isCacheBusted
-            ? 'public, max-age=31536000, immutable'
-            : 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
-          'Pragma': isCacheBusted ? 'public' : 'no-cache',
-          'Expires': isCacheBusted ? new Date(Date.now() + 31536000000).toUTCString() : '0',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       }
     );

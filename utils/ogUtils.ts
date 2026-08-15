@@ -19,12 +19,93 @@ export interface OgData {
   period: string;
 }
 
+export interface TimezoneOption {
+  value: string; // 'auto' or offset string like '+08:00', '-07:00'
+  label: string;
+  offsetMinutes: number | 'auto';
+}
+
+export const TIMEZONE_PRESETS: ReadonlyArray<TimezoneOption> = [
+  { value: 'auto', label: 'Auto (Detect Browser Timezone)', offsetMinutes: 'auto' },
+  { value: '-12:00', label: 'UTC-12:00 (Baker Island, IDLW)', offsetMinutes: -720 },
+  { value: '-11:00', label: 'UTC-11:00 (Pago Pago, Niue)', offsetMinutes: -660 },
+  { value: '-10:00', label: 'UTC-10:00 (Honolulu, Hawaii, HST)', offsetMinutes: -600 },
+  { value: '-09:00', label: 'UTC-09:00 (Anchorage, Alaska, AKST)', offsetMinutes: -540 },
+  { value: '-08:00', label: 'UTC-08:00 (Los Angeles, Vancouver, PST)', offsetMinutes: -480 },
+  { value: '-07:00', label: 'UTC-07:00 (Denver, Phoenix, MST)', offsetMinutes: -420 },
+  { value: '-06:00', label: 'UTC-06:00 (Chicago, Mexico City, CST)', offsetMinutes: -360 },
+  { value: '-05:00', label: 'UTC-05:00 (New York, Toronto, EST)', offsetMinutes: -300 },
+  { value: '-04:00', label: 'UTC-04:00 (Halifax, Santiago, AST)', offsetMinutes: -240 },
+  { value: '-03:30', label: "UTC-03:30 (St. John's, Newfoundland)", offsetMinutes: -210 },
+  { value: '-03:00', label: 'UTC-03:00 (São Paulo, Buenos Aires)', offsetMinutes: -180 },
+  { value: '-02:00', label: 'UTC-02:00 (South Georgia, Mid-Atlantic)', offsetMinutes: -120 },
+  { value: '-01:00', label: 'UTC-01:00 (Azores, Cape Verde)', offsetMinutes: -60 },
+  { value: '+00:00', label: 'UTC±00:00 (London, Dublin, Lisbon, GMT/UTC)', offsetMinutes: 0 },
+  { value: '+01:00', label: 'UTC+01:00 (Paris, Berlin, Rome, Madrid, CET)', offsetMinutes: 60 },
+  { value: '+02:00', label: 'UTC+02:00 (Cairo, Athens, Jerusalem, EET)', offsetMinutes: 120 },
+  { value: '+03:00', label: 'UTC+03:00 (Moscow, Riyadh, Nairobi, MSK)', offsetMinutes: 180 },
+  { value: '+03:30', label: 'UTC+03:30 (Tehran, Iran, IRST)', offsetMinutes: 210 },
+  { value: '+04:00', label: 'UTC+04:00 (Dubai, Baku, GST)', offsetMinutes: 240 },
+  { value: '+04:30', label: 'UTC+04:30 (Kabul, Afghanistan)', offsetMinutes: 270 },
+  { value: '+05:00', label: 'UTC+05:00 (Karachi, Tashkent, PKT)', offsetMinutes: 300 },
+  { value: '+05:30', label: 'UTC+05:30 (New Delhi, Mumbai, Kolkata, IST)', offsetMinutes: 330 },
+  { value: '+05:45', label: 'UTC+05:45 (Kathmandu, Nepal, NPT)', offsetMinutes: 345 },
+  { value: '+06:00', label: 'UTC+06:00 (Dhaka, Almaty, BST)', offsetMinutes: 360 },
+  { value: '+06:30', label: 'UTC+06:30 (Yangon, Myanmar, MMT)', offsetMinutes: 390 },
+  { value: '+07:00', label: 'UTC+07:00 (Bangkok, Jakarta, Hanoi, ICT)', offsetMinutes: 420 },
+  { value: '+08:00', label: 'UTC+08:00 (Singapore, Manila, Beijing, Hong Kong, SGT)', offsetMinutes: 480 },
+  { value: '+09:00', label: 'UTC+09:00 (Tokyo, Seoul, JST/KST)', offsetMinutes: 540 },
+  { value: '+09:30', label: 'UTC+09:30 (Adelaide, Darwin, ACST)', offsetMinutes: 570 },
+  { value: '+10:00', label: 'UTC+10:00 (Sydney, Melbourne, Brisbane, AEST)', offsetMinutes: 600 },
+  { value: '+10:30', label: 'UTC+10:30 (Lord Howe Island)', offsetMinutes: 630 },
+  { value: '+11:00', label: 'UTC+11:00 (Nouméa, Solomon Islands)', offsetMinutes: 660 },
+  { value: '+12:00', label: 'UTC+12:00 (Auckland, Wellington, Fiji, NZST)', offsetMinutes: 720 },
+  { value: '+12:45', label: 'UTC+12:45 (Chatham Islands)', offsetMinutes: 765 },
+  { value: '+13:00', label: "UTC+13:00 (Nuku'alofa, Tonga, Samoa)", offsetMinutes: 780 },
+  { value: '+14:00', label: 'UTC+14:00 (Kiritimati, Line Islands)', offsetMinutes: 840 },
+];
+
 /**
- * Returns the client user's UTC offset in minutes (e.g. UTC-7 => -420, UTC+8 => +480, UTC+5:30 => +330).
+ * Returns the client user's native UTC offset in minutes (e.g. UTC-7 => -420, UTC+8 => +480, UTC+5:30 => +330).
  */
 export function getUserTimezoneOffset(): number {
   if (typeof window === 'undefined') return 0;
   return -new Date().getTimezoneOffset();
+}
+
+/**
+ * Resolves the effective UTC offset in minutes from the user's setting ('auto' or offset string).
+ */
+export function resolveTimezoneOffset(timezoneSetting?: string): number {
+  if (!timezoneSetting || timezoneSetting === 'auto') {
+    return getUserTimezoneOffset();
+  }
+  return parseUtcOffset(timezoneSetting);
+}
+
+/**
+ * Adjusts a date based on the user's configured timezone setting.
+ */
+export function getAdjustedTime(date: Date = new Date(), timezoneSetting: string = 'auto'): Date {
+  if (timezoneSetting === 'auto') return date;
+  const targetOffset = parseUtcOffset(timezoneSetting);
+  const localOffset = -date.getTimezoneOffset();
+  const deltaMs = (targetOffset - localOffset) * 60 * 1000;
+  return new Date(date.getTime() + deltaMs);
+}
+
+/**
+ * Gets a friendly display name for the currently active timezone setting.
+ */
+export function getTimezoneDisplayName(timezoneSetting: string = 'auto'): string {
+  if (!timezoneSetting || timezoneSetting === 'auto') {
+    const localOffset = getUserTimezoneOffset();
+    return `Auto (${formatUtcOffsetLabel(localOffset)})`;
+  }
+  const matched = TIMEZONE_PRESETS.find(p => p.value === timezoneSetting);
+  if (matched) return matched.label;
+  const parsed = parseUtcOffset(timezoneSetting);
+  return formatUtcOffsetLabel(parsed);
 }
 
 /**
@@ -95,7 +176,6 @@ export function parseUtcOffset(tzValue: string | number | null | undefined): num
   const num = parseFloat(str);
   if (!isNaN(num)) {
     if (Math.abs(num) <= 14 && num !== 0 && !str.includes('.')) {
-      // Ambiguous: If string is "+8" or "-7", treat as hours. If "480", treat as minutes.
       if (str.startsWith('+') || str.startsWith('-') || Math.abs(num) <= 12) {
         return Math.round(num * 60);
       }
@@ -156,16 +236,22 @@ export function getAllUnitsOgData(date: Date = new Date(), weekStartDay: WeekSta
 }
 
 /**
- * Generates high-entropy cache busting tokens (timestamp + unique short hex nonce)
+ * Generates a high-entropy short cache-busting nonce (e.g. 'm3k8a2')
  */
-export function generateCacheBuster() {
-  const t = Date.now();
-  const v = Math.random().toString(36).substring(2, 8);
-  return { t, v };
+export function generateCacheNonce(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
 }
 
 /**
- * Builds the canonical or relative Open Graph image URL with timezone and cache-busting timestamp
+ * Generates high-entropy cache busting tokens
+ */
+export function generateCacheBuster() {
+  const v = generateCacheNonce();
+  return { v, t: Date.now() };
+}
+
+/**
+ * Builds the canonical or relative Open Graph image URL with timezone and cache-busting nonce
  */
 export function getOgImageUrl(params: {
   item?: string | null;
@@ -186,11 +272,11 @@ export function getOgImageUrl(params: {
   if (params.tz !== undefined && params.tz !== null && params.tz !== '') {
     query.set('tz', String(params.tz));
   }
-  if (params.t !== undefined && params.t !== null && params.t !== '') {
-    query.set('t', String(params.t));
-  }
+  // Only include v (nonce) for clean cache-busting, or t if explicitly provided
   if (params.v !== undefined && params.v !== null && params.v !== '') {
     query.set('v', String(params.v));
+  } else if (params.t !== undefined && params.t !== null && params.t !== '') {
+    query.set('t', String(params.t));
   }
 
   const queryString = query.toString();

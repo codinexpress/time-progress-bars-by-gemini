@@ -5,6 +5,7 @@ import {
   SunIcon, MoonIcon, BarsIcon, OrbitIcon, PixelIcon, SpiralIcon, HourglassIcon, RadialSliceIcon, ResetIcon
 } from './Icons';
 import { DEFAULT_PROGRESS_CONFIGS } from '../config/progressConfig';
+import { TIMEZONE_PRESETS, getTimezoneDisplayName, getAdjustedTime, getUserTimezoneOffset, formatUtcOffsetLabel } from '../utils/ogUtils';
 
 const SettingsDisplay: React.FC<SettingsProps> = ({
   settings,
@@ -29,6 +30,15 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
     { value: 200, label: "Minimum (200ms)" },
   ];
 
+  const currentTzDisplay = getTimezoneDisplayName(settings.timezone);
+  const currentTimeInTz = getAdjustedTime(new Date(), settings.timezone);
+  const timeFormatted = currentTimeInTz.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+
   return (
     <div className="space-y-6 p-1">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -41,7 +51,48 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
           {settings.theme === 'light' ? <MoonIcon className="w-5 h-5 text-slate-700" /> : <SunIcon className="w-5 h-5 text-slate-300" />}
         </button>
       </div>
-      <div>
+
+      {/* Timezone Setting */}
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-700/50">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+          <div>
+            <label htmlFor="timezoneSelect" className="text-sm font-medium text-slate-700 dark:text-slate-300 block">
+              Timezone / Location:
+            </label>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Active: <span className="font-semibold text-sky-600 dark:text-sky-400">{currentTzDisplay}</span> ({timeFormatted})
+            </span>
+          </div>
+          {settings.timezone !== 'auto' && (
+            <button
+              onClick={() => onSettingChange('timezone', 'auto')}
+              className="mt-2 sm:mt-0 text-xs px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors self-start sm:self-auto"
+            >
+              Reset to Auto
+            </button>
+          )}
+        </div>
+
+        <div className="relative">
+          <select
+            id="timezoneSelect"
+            value={settings.timezone || 'auto'}
+            onChange={(e) => onSettingChange('timezone', e.target.value)}
+            className="w-full px-3 py-2 text-xs sm:text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none shadow-sm cursor-pointer"
+          >
+            {TIMEZONE_PRESETS.map((tz) => (
+              <option key={tz.value} value={tz.value} className="bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                {tz.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
+          Saved locally in browser storage. Drives live dashboard timers and dynamic social preview cards.
+        </p>
+      </div>
+
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-700/50">
         <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">View Mode:</span>
         <div className="flex flex-wrap gap-2 items-center">
           {vizOptions.map(opt => (

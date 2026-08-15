@@ -92,6 +92,7 @@ export interface ProgressItemConfig {
 
 export interface CurrentTimeDisplayProps {
   currentTime: Date;
+  timezone?: string;
 }
 
 export type CustomColors = {
@@ -111,6 +112,7 @@ export interface AppSettings {
   globalDecimalPlaces: number;
   decimalPlaceOverrides: DecimalOverrides;
   birthDate: string; // ISO Date string for Life progress
+  timezone: string; // 'auto' or UTC offset/timezone identifier (e.g. '+08:00', '-07:00', 'UTC')
 }
 
 export interface SettingsProps {

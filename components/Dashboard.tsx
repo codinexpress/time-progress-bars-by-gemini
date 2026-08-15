@@ -15,7 +15,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
-  const currentTime = useTime(settings.updateIntervalMs);
+  const currentTime = useTime(settings.updateIntervalMs, settings.timezone);
   
   // Initialize maximized state from URL parameter 'item'
   const [maximizedConfigId, setMaximizedConfigId] = useState<string | null>(() => {
@@ -76,7 +76,7 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, isFocusMode }) => {
 
   return (
     <>
-      <CurrentTimeDisplay currentTime={currentTime} />
+      <CurrentTimeDisplay currentTime={currentTime} timezone={settings.timezone} />
 
       <div className="space-y-12">
           {(Object.keys(groupedConfigs) as SectionId[]).map((section) => (

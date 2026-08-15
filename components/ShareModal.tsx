@@ -19,10 +19,11 @@ import {
   getOgImageUrl, 
   getSocialShareLinks, 
   getPlatformDebuggerLinks,
-  getUserTimezoneOffset, 
+  resolveTimezoneOffset,
+  getTimezoneDisplayName,
   formatUtcOffsetString, 
   formatUtcOffsetLabel,
-  generateCacheBuster
+  generateCacheNonce
 } from '../utils/ogUtils';
 
 interface ShareModalProps {
@@ -42,8 +43,8 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const [showDebuggers, setShowDebuggers] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // High-entropy cache buster (timestamp + random hex nonce)
-  const [{ t: shareTimestamp, v: shareNonce }, setCacheBuster] = useState(() => generateCacheBuster());
+  // High-entropy cache buster nonce
+  const [shareNonce, setShareNonce] = useState(() => generateCacheNonce());
 
   // Close on Escape key press
   useEffect(() => {
@@ -60,7 +61,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
   // Refresh snapshot when modal opens or user triggers it
   const handleRefreshSnapshot = useCallback(() => {
     setIsRefreshing(true);
-    setCacheBuster(generateCacheBuster());
+    setShareNonce(generateCacheNonce());
     setTimeout(() => setIsRefreshing(false), 400);
   }, []);
 
@@ -69,18 +70,18 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
 
-  // Get user local timezone offset
-  const offsetMinutes = getUserTimezoneOffset();
+  // Get active timezone offset based on settings
+  const offsetMinutes = resolveTimezoneOffset(settings.timezone);
   const tzOffsetString = formatUtcOffsetString(offsetMinutes);
   const tzLabel = formatUtcOffsetLabel(offsetMinutes);
+  const tzDisplayName = getTimezoneDisplayName(settings.timezone);
 
-  // Construct canonical shareable page link with timezone offset and cache-busting timestamp & nonce
+  // Construct canonical shareable page link with timezone offset and cache-busting nonce
   const deepLinkParams = new URLSearchParams();
   if (config) {
     deepLinkParams.set('item', config.id);
   }
   deepLinkParams.set('tz', tzOffsetString);
-  deepLinkParams.set('t', String(shareTimestamp));
   deepLinkParams.set('v', shareNonce);
 
   const queryString = deepLinkParams.toString();
@@ -92,7 +93,6 @@ const ShareModal: React.FC<ShareModalProps> = ({
     mode: settings.visualizationMode,
     theme: settings.theme,
     tz: tzOffsetString,
-    t: shareTimestamp,
     v: shareNonce,
   });
 
@@ -112,7 +112,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
   const debuggerLinks = getPlatformDebuggerLinks(shareableUrl);
 
-  const snapshotDate = new Date(shareTimestamp);
+  const snapshotDate = new Date();
   const snapshotFormatted = snapshotDate.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -226,7 +226,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
             {/* Aspect 1.91:1 Card container */}
             <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner group">
               <img
-                key={`${shareTimestamp}-${shareNonce}`}
+                key={shareNonce}
                 src={ogImgUrl}
                 alt={shareTitle}
                 className="w-full h-auto aspect-[1.91/1] object-cover transition-transform duration-300 group-hover:scale-[1.01]"
