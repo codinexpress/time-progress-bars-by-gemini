@@ -7,6 +7,17 @@
     },
     {
       "source": "/(.*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*([Ff]acebookexternalhit|[Ff]acebot|[Tt]witterbot|[Ss]lackbot|[Ll]inked[Ii]n[Bb]ot|[Ww]hats[Aa]pp|[Dd]iscordbot|[Tt]elegram[Bb]ot|[Pp]interest|[Gg]ooglebot|[Bb]ingbot|[Aa]pplebot|[Yy]andex|[Bb]ot|[Cc]rawler|[Ss]pider|[Cc]url|[Ww]get).*"
+        }
+      ],
+      "destination": "/api/og-html"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
