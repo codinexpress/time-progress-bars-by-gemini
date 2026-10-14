@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Theme } from '../types';
 import { useComments } from '../hooks/useComments';
@@ -35,16 +34,32 @@ const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
     postComment 
   } = useComments();
 
-  const [nameInput, setNameInput] = useState<string>('');
+  const [nameInput, setNameInput] = useState<string>(() => {
+    try {
+      return localStorage.getItem('timeFlux_commentAuthor') || '';
+    } catch {
+      return '';
+    }
+  });
   const [commentInput, setCommentInput] = useState<string>('');
+  const [postSuccess, setPostSuccess] = useState<boolean>(false);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentInput.trim()) return;
+    const trimmedText = commentInput.trim();
+    if (!trimmedText || isSubmitting) return;
 
-    const success = await postComment(nameInput, commentInput);
+    try {
+      localStorage.setItem('timeFlux_commentAuthor', nameInput.trim());
+    } catch {
+      // Ignore
+    }
+
+    const success = await postComment(nameInput, trimmedText);
     if (success) {
       setCommentInput('');
+      setPostSuccess(true);
+      setTimeout(() => setPostSuccess(false), 3500);
     }
   };
   
@@ -63,7 +78,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
       <form onSubmit={handleSubmitComment} className="space-y-3 p-4 rounded-lg bg-slate-100 dark:bg-slate-700/50 shadow">
         <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3 flex justify-between items-center">
           <span>Leave a Comment</span>
-          <span className="text-xs font-normal text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded">Max 100 (Rolling)</span>
+          <span className="text-xs font-normal text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded">Community Feed</span>
         </h2>
         <div>
           <label htmlFor="commentAuthor" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -74,7 +89,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
             id="commentAuthor"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Your name"
+            placeholder="Your name or callsign"
             className={inputClass}
             maxLength={40}
           />
@@ -87,7 +102,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
             id="commentText"
             value={commentInput}
             onChange={(e) => setCommentInput(e.target.value)}
-            placeholder="Write your comment here..."
+            placeholder="Share your thoughts or observations about time..."
             rows={3}
             required
             className={`${inputClass} min-h-[60px]`}
@@ -97,13 +112,22 @@ const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
              {commentInput.length}/500
           </div>
         </div>
-        <div className="flex items-center justify-end space-x-3 pt-1">
-            {isSubmitting && <span className="text-xs text-slate-500 dark:text-slate-400">Broadcasting...</span>}
-            <button type="submit" disabled={isSubmitting || !commentInput.trim()} className={buttonClass}>
-             Post Comment
-            </button>
+        <div className="flex items-center justify-between pt-1">
+            <div>
+              {postSuccess && (
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  ✓ Signal broadcasted successfully!
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-3">
+              {isSubmitting && <span className="text-xs text-slate-500 dark:text-slate-400 animate-pulse">Broadcasting...</span>}
+              <button type="submit" disabled={isSubmitting || !commentInput.trim()} className={buttonClass}>
+                {isSubmitting ? 'Posting...' : 'Post Comment'}
+              </button>
+            </div>
         </div>
-         {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">{error}</p>}
+        {error && <p className="mt-2 text-xs text-amber-600 dark:text-amber-400" role="alert">{error}</p>}
       </form>
 
       <div className="space-y-4">
@@ -111,13 +135,15 @@ const CommentSection: React.FC<CommentSectionProps> = ({ appTheme }) => {
            <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">
               {comments.length > 0 ? `${comments.length} Comment${comments.length === 1 ? '' : 's'}` : 'Discussion'}
            </h3>
-           {isLoading && <span className="text-xs text-sky-500 animate-pulse">{statusMessage}</span>}
-           {!isLoading && !error && <button onClick={fetchComments} className="text-xs text-sky-500 hover:underline">Refresh</button>}
+           <div className="flex items-center gap-3">
+             {isLoading && <span className="text-xs text-sky-500 animate-pulse">{statusMessage}</span>}
+             {!isLoading && <button type="button" onClick={fetchComments} className="text-xs text-sky-500 hover:underline">Refresh Feed</button>}
+           </div>
         </div>
         
         {!isLoading && comments.length === 0 && !error && (
           <div className="text-center py-8 text-slate-400 dark:text-slate-500 italic">
-            No signals detected. Be the first to broadcast.
+            No signals detected yet. Be the first to broadcast a comment.
           </div>
         )}
         
