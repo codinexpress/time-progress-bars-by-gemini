@@ -22,6 +22,11 @@ const App: React.FC = () => {
     updateSetting, 
     updateColor, 
     updateDecimalOverride,
+    toggleUnitVisibility,
+    toggleSectionVisibility,
+    showAllCards,
+    hideAllCards,
+    showCategoryCards,
     resetColors, 
     resetAllSettings 
   } = useAppSettings();
@@ -185,7 +190,15 @@ const App: React.FC = () => {
         {/* Main Content Area */}
         <div className="py-2 min-h-[300px] animate-fadeIn">
           {(activeTab === 'visualizations' || isFocusMode) && (
-            <Dashboard settings={settings} isFocusMode={isFocusMode} />
+            <Dashboard 
+              settings={settings} 
+              isFocusMode={isFocusMode} 
+              onToggleUnitVisibility={toggleUnitVisibility}
+              onToggleSectionVisibility={toggleSectionVisibility}
+              onShowAllCards={showAllCards}
+              onHideAllCards={hideAllCards}
+              onShowCategoryCards={showCategoryCards}
+            />
           )}
           
           {!isFocusMode && activeTab === 'settings' && (
@@ -194,6 +207,11 @@ const App: React.FC = () => {
               onSettingChange={updateSetting}
               onResetAllSettings={handleResetAll}
               onDecimalOverrideChange={updateDecimalOverride}
+              onToggleUnitVisibility={toggleUnitVisibility}
+              onToggleSectionVisibility={toggleSectionVisibility}
+              onShowAllCards={showAllCards}
+              onHideAllCards={hideAllCards}
+              onShowCategoryCards={showCategoryCards}
             />
           )}
           

@@ -7,7 +7,8 @@ import PixelGrid from './PixelGrid';
 import TimeSpiral from './TimeSpiral';
 import Hourglass from './Hourglass';
 import RadialSlice from './RadialSlice';
-import { ExpandIcon, XMarkIcon, ShareIcon } from './Icons';
+import { ExpandIcon, XMarkIcon, ShareIcon, EyeSlashIcon } from './Icons';
+import { TimeUnitId } from '../types';
 
 interface VisualizationCardProps {
   config: ProgressItemConfig;
@@ -16,6 +17,7 @@ interface VisualizationCardProps {
   onMaximize?: (id: string) => void;
   onClose?: () => void;
   onShare?: (config: ProgressItemConfig) => void;
+  onHide?: (id: TimeUnitId) => void;
   isMaximized?: boolean;
 }
 
@@ -35,6 +37,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
   onMaximize, 
   onClose, 
   onShare,
+  onHide,
   isMaximized = false 
 }) => {
   const { visualizationMode, customColors, weekStartDay, theme, globalDecimalPlaces, decimalPlaceOverrides, birthDate } = settings;
@@ -128,6 +131,20 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
     <div className={containerClass}>
       {/* Control Buttons */}
       <div className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 transition-opacity duration-200 ${isMaximized ? '' : 'opacity-0 group-hover:opacity-100'}`}>
+        {onHide && !isMaximized && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onHide(config.id);
+            }}
+            className="p-1.5 rounded-full bg-slate-100/70 dark:bg-slate-700/70 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
+            title={`Hide ${config.label} card`}
+            aria-label={`Hide ${config.label} card`}
+          >
+            <EyeSlashIcon className="w-4 h-4" />
+          </button>
+        )}
+
         {onShare && (
           <button
             onClick={() => onShare(config)}

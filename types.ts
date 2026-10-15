@@ -113,6 +113,8 @@ export interface AppSettings {
   decimalPlaceOverrides: DecimalOverrides;
   birthDate: string; // ISO Date string for Life progress
   timezone: string; // 'auto' or UTC offset/timezone identifier (e.g. '+08:00', '-07:00', 'UTC')
+  hiddenUnits: TimeUnitId[];
+  hiddenSections: SectionId[];
 }
 
 export interface SettingsProps {
@@ -120,6 +122,11 @@ export interface SettingsProps {
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   onResetAllSettings: () => void;
   onDecimalOverrideChange: (unitId: TimeUnitId, value: number | null) => void;
+  onToggleUnitVisibility?: (unitId: TimeUnitId) => void;
+  onToggleSectionVisibility?: (sectionId: SectionId) => void;
+  onShowAllCards?: () => void;
+  onHideAllCards?: () => void;
+  onShowCategoryCards?: (sectionId: SectionId) => void;
 }
 
 export interface ColorCustomizerProps {

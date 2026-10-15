@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { SettingsProps, VisualizationMode, WeekStartDay, TimeUnitId } from '../types';
+import { SettingsProps, VisualizationMode, WeekStartDay, TimeUnitId, SectionId } from '../types';
 import {
-  SunIcon, MoonIcon, BarsIcon, OrbitIcon, PixelIcon, SpiralIcon, HourglassIcon, RadialSliceIcon, ResetIcon
+  SunIcon, MoonIcon, BarsIcon, OrbitIcon, PixelIcon, SpiralIcon, HourglassIcon, RadialSliceIcon, ResetIcon, EyeIcon, EyeSlashIcon
 } from './Icons';
 import { DEFAULT_PROGRESS_CONFIGS } from '../config/progressConfig';
 import { TIMEZONE_PRESETS, getTimezoneDisplayName, getAdjustedTime, getUserTimezoneOffset, formatUtcOffsetLabel } from '../utils/ogUtils';
@@ -12,6 +12,11 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
   onSettingChange,
   onResetAllSettings,
   onDecimalOverrideChange,
+  onToggleUnitVisibility,
+  onToggleSectionVisibility,
+  onShowAllCards,
+  onHideAllCards,
+  onShowCategoryCards,
 }) => {
   const vizOptions: { mode: VisualizationMode, label: string, Icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
     { mode: 'bars', label: 'Bars', Icon: BarsIcon },
@@ -254,6 +259,199 @@ const SettingsDisplay: React.FC<SettingsProps> = ({
             })}
           </div>
           <p className="text-[10px] text-slate-400 mt-2 text-center">Leave blank to use global setting.</p>
+        </div>
+      </div>
+
+      {/* Card & Category Visibility Management */}
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-700/50">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Card &amp; Category Visibility
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Hide or unhide specific cards (e.g. second, hour, heartbeat) or entire categories.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {onShowAllCards && (
+              <button
+                type="button"
+                onClick={onShowAllCards}
+                className="text-xs px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors"
+              >
+                Show All
+              </button>
+            )}
+            {onHideAllCards && (
+              <button
+                type="button"
+                onClick={onHideAllCards}
+                className="text-xs px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors"
+              >
+                Hide All
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {(['micro', 'cyclical', 'macro', 'mega'] as SectionId[]).map((sectionId) => {
+            const sectionLabels: Record<SectionId, string> = {
+              micro: 'Micro Time',
+              cyclical: 'Cyclical Time',
+              macro: 'Macro Time',
+              mega: 'Mega Time'
+            };
+            const categoryThemes: Record<SectionId, { border: string; bgGradient: string; badge: string; accentColor: string }> = {
+              micro: {
+                border: 'border-teal-400/50 dark:border-teal-500/40',
+                bgGradient: 'from-teal-500/10 via-cyan-500/5 to-transparent',
+                badge: 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 border-teal-300 dark:border-teal-700',
+                accentColor: '#14b8a6',
+              },
+              cyclical: {
+                border: 'border-sky-400/50 dark:border-sky-500/40',
+                bgGradient: 'from-sky-500/10 via-amber-500/5 to-transparent',
+                badge: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+                accentColor: '#0ea5e9',
+              },
+              macro: {
+                border: 'border-purple-400/50 dark:border-purple-500/40',
+                bgGradient: 'from-purple-500/10 via-pink-500/5 to-transparent',
+                badge: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 border-purple-300 dark:border-purple-700',
+                accentColor: '#8b5cf6',
+              },
+              mega: {
+                border: 'border-pink-400/50 dark:border-pink-500/40',
+                bgGradient: 'from-pink-500/10 via-indigo-500/5 to-transparent',
+                badge: 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300 border-pink-300 dark:border-pink-700',
+                accentColor: '#db2777',
+              },
+            };
+            const configs = DEFAULT_PROGRESS_CONFIGS.filter(c => c.section === sectionId);
+            const isSectionHidden = (settings.hiddenSections || []).includes(sectionId);
+            const hiddenUnits = settings.hiddenUnits || [];
+            const visibleUnitsCount = configs.filter(c => !hiddenUnits.includes(c.id)).length;
+            const theme = categoryThemes[sectionId];
+
+            return (
+              <div 
+                key={sectionId} 
+                className={`p-3.5 sm:p-4 rounded-xl border bg-gradient-to-br transition-all ${theme.border} ${theme.bgGradient} ${
+                  isSectionHidden
+                    ? 'opacity-60 bg-slate-100/50 dark:bg-slate-800/20'
+                    : 'bg-white/80 dark:bg-slate-800/70 shadow-xs'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="w-2.5 h-2.5 rounded-full shrink-0" 
+                      style={{ backgroundColor: theme.accentColor }} 
+                    />
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      {sectionLabels[sectionId]}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold border ${theme.badge}`}>
+                      {isSectionHidden ? 'Category Hidden' : `${visibleUnitsCount} / ${configs.length} active`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {onShowCategoryCards && !isSectionHidden && visibleUnitsCount < configs.length && (
+                      <button
+                        type="button"
+                        onClick={() => onShowCategoryCards(sectionId)}
+                        className="text-xs px-2 py-1 text-sky-600 dark:text-sky-400 hover:underline font-semibold"
+                      >
+                        Show All
+                      </button>
+                    )}
+                    {onToggleSectionVisibility && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleSectionVisibility(sectionId)}
+                        className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors flex items-center gap-1.5 ${
+                          isSectionHidden
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                            : 'bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200'
+                        }`}
+                      >
+                        {isSectionHidden ? (
+                          <>
+                            <EyeIcon className="w-3.5 h-3.5" />
+                            <span>Unhide Category</span>
+                          </>
+                        ) : (
+                          <>
+                            <EyeSlashIcon className="w-3.5 h-3.5" />
+                            <span>Hide Category</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Individual units in this section with metric colors */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {configs.map((config) => {
+                    const isUnitHidden = hiddenUnits.includes(config.id);
+                    const isEffectiveHidden = isSectionHidden || isUnitHidden;
+                    const effectiveColor = settings.customColors[config.id] || config.baseColor;
+
+                    return (
+                      <button
+                        key={config.id}
+                        type="button"
+                        disabled={isSectionHidden}
+                        onClick={() => onToggleUnitVisibility && onToggleUnitVisibility(config.id)}
+                        style={
+                          !isEffectiveHidden
+                            ? {
+                                backgroundColor: `${effectiveColor}15`,
+                                borderColor: `${effectiveColor}50`,
+                              }
+                            : undefined
+                        }
+                        className={`flex items-center justify-between p-2 rounded-lg border text-xs font-medium transition-all text-left ${
+                          isEffectiveHidden
+                            ? 'bg-slate-100/60 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 text-slate-400 dark:text-slate-500'
+                            : 'text-slate-800 dark:text-slate-100 shadow-xs hover:scale-102 active:scale-98'
+                        } ${isSectionHidden ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                        title={isSectionHidden ? 'Category is hidden' : isUnitHidden ? `Unhide ${config.label}` : `Hide ${config.label}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span 
+                            className="w-4 h-4 rounded-md flex items-center justify-center shrink-0 p-0.5"
+                            style={
+                              !isEffectiveHidden
+                                ? { backgroundColor: `${effectiveColor}25`, color: effectiveColor }
+                                : { color: '#94a3b8' }
+                            }
+                          >
+                            {config.icon({ className: 'w-3.5 h-3.5', color: !isEffectiveHidden ? effectiveColor : '#94a3b8' })}
+                          </span>
+                          <span className={`truncate font-semibold ${isEffectiveHidden ? 'line-through' : ''}`}>
+                            {config.label}
+                          </span>
+                        </div>
+                        {isUnitHidden && !isSectionHidden ? (
+                          <EyeSlashIcon className="w-3.5 h-3.5 text-amber-500 shrink-0 ml-1" />
+                        ) : (
+                          <span 
+                            className="w-1.5 h-1.5 rounded-full shrink-0 ml-1" 
+                            style={{ backgroundColor: !isEffectiveHidden ? effectiveColor : 'transparent' }} 
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

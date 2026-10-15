@@ -1,8 +1,9 @@
 
 import { useEffect, useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import { AppSettings, Theme, TimeUnitId, VisualizationMode } from '../types';
+import { AppSettings, SectionId, Theme, TimeUnitId, VisualizationMode } from '../types';
 import { getUrlParam, setUrlParam } from '../utils/urlUtils';
+import { DEFAULT_PROGRESS_CONFIGS } from '../config/progressConfig';
 
 const defaultAppSettings: AppSettings = {
   theme: 'light',
@@ -14,6 +15,8 @@ const defaultAppSettings: AppSettings = {
   decimalPlaceOverrides: {},
   birthDate: '1990-01-01',
   timezone: 'auto',
+  hiddenUnits: [],
+  hiddenSections: [],
 };
 
 const isValidMode = (mode: string | null): mode is VisualizationMode => {
@@ -47,6 +50,8 @@ export const useAppSettings = () => {
     decimalPlaceOverrides: storedSettings?.decimalPlaceOverrides || defaultAppSettings.decimalPlaceOverrides,
     birthDate: storedSettings?.birthDate || defaultAppSettings.birthDate,
     timezone: storedSettings?.timezone || defaultAppSettings.timezone,
+    hiddenUnits: Array.isArray(storedSettings?.hiddenUnits) ? storedSettings.hiddenUnits : [],
+    hiddenSections: Array.isArray(storedSettings?.hiddenSections) ? storedSettings.hiddenSections : [],
   };
 
   // Sync URL -> State on mount (Deep linking priority)
@@ -76,28 +81,88 @@ export const useAppSettings = () => {
   }, [settings.theme]);
 
   const updateSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings(prev => ({ ...defaultAppSettings, ...prev, [key]: value }));
   }, [setSettings]);
 
   const updateColor = useCallback((unitId: string, colorHex: string) => {
-    setSettings(prev => ({
-      ...prev,
-      customColors: {
-        ...(prev.customColors || {}),
-        [unitId]: colorHex,
-      }
-    }));
+    setSettings(prev => {
+      const base = { ...defaultAppSettings, ...prev };
+      return {
+        ...base,
+        customColors: {
+          ...(base.customColors || {}),
+          [unitId]: colorHex,
+        }
+      };
+    });
   }, [setSettings]);
 
   const updateDecimalOverride = useCallback((unitId: TimeUnitId, value: number | null) => {
     setSettings(prev => {
-      const newOverrides = { ...(prev.decimalPlaceOverrides || {}) };
+      const base = { ...defaultAppSettings, ...prev };
+      const newOverrides = { ...(base.decimalPlaceOverrides || {}) };
       if (value === null) {
         delete newOverrides[unitId];
       } else {
         newOverrides[unitId] = value;
       }
-      return { ...prev, decimalPlaceOverrides: newOverrides };
+      return { ...base, decimalPlaceOverrides: newOverrides };
+    });
+  }, [setSettings]);
+
+  const toggleUnitVisibility = useCallback((unitId: TimeUnitId) => {
+    setSettings(prev => {
+      const base = { ...defaultAppSettings, ...prev };
+      const currentHidden = Array.isArray(base.hiddenUnits) ? base.hiddenUnits : [];
+      const isHidden = currentHidden.includes(unitId);
+      const nextHidden = isHidden 
+        ? currentHidden.filter(id => id !== unitId)
+        : [...currentHidden, unitId];
+      return { ...base, hiddenUnits: nextHidden };
+    });
+  }, [setSettings]);
+
+  const toggleSectionVisibility = useCallback((sectionId: SectionId) => {
+    setSettings(prev => {
+      const base = { ...defaultAppSettings, ...prev };
+      const currentHidden = Array.isArray(base.hiddenSections) ? base.hiddenSections : [];
+      const isHidden = currentHidden.includes(sectionId);
+      const nextHidden = isHidden
+        ? currentHidden.filter(s => s !== sectionId)
+        : [...currentHidden, sectionId];
+      return { ...base, hiddenSections: nextHidden };
+    });
+  }, [setSettings]);
+
+  const showAllCards = useCallback(() => {
+    setSettings(prev => ({
+      ...defaultAppSettings,
+      ...prev,
+      hiddenUnits: [],
+      hiddenSections: []
+    }));
+  }, [setSettings]);
+
+  const hideAllCards = useCallback(() => {
+    const allSections: SectionId[] = ['micro', 'cyclical', 'macro', 'mega'];
+    setSettings(prev => ({
+      ...defaultAppSettings,
+      ...prev,
+      hiddenSections: allSections
+    }));
+  }, [setSettings]);
+
+  const showCategoryCards = useCallback((sectionId: SectionId) => {
+    const categoryUnitIds = DEFAULT_PROGRESS_CONFIGS.filter(c => c.section === sectionId).map(c => c.id);
+    setSettings(prev => {
+      const base = { ...defaultAppSettings, ...prev };
+      const currentHiddenSections = Array.isArray(base.hiddenSections) ? base.hiddenSections : [];
+      const currentHiddenUnits = Array.isArray(base.hiddenUnits) ? base.hiddenUnits : [];
+      return {
+        ...base,
+        hiddenSections: currentHiddenSections.filter(s => s !== sectionId),
+        hiddenUnits: currentHiddenUnits.filter(u => !categoryUnitIds.includes(u)),
+      };
     });
   }, [setSettings]);
 
@@ -118,6 +183,11 @@ export const useAppSettings = () => {
     updateSetting,
     updateColor,
     updateDecimalOverride,
+    toggleUnitVisibility,
+    toggleSectionVisibility,
+    showAllCards,
+    hideAllCards,
+    showCategoryCards,
     resetColors,
     resetAllSettings
   };
